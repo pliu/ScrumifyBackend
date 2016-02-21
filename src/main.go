@@ -7,7 +7,10 @@ import (
 _ "github.com/go-sql-driver/mysql"
 "gopkg.in/gorp.v1"
 "log"
+"math/rand"
 )
+
+const DATABASE_NAME="Todo"
 
 type User struct {
 	Id int64 `db:"id" json:"id"`
@@ -32,6 +35,7 @@ type Story struct {
 	Id int64 `db:"id" json:"id"`
 	Name string `db:"name" json:"name"`
 	Description string `db:"description" json:"description"`
+	Priority int64 `db:"priority" json:"priority"`
 }
 
 type Epic struct {
@@ -40,9 +44,14 @@ type Epic struct {
 }
 
 type Session struct {
-	Id int64 `db:"id" json:"id"`
 	SessionID int64 `db:"sessionid" json:"sessionid"`
 	UserID int64 `db:"userid" json:"userid"`
+}
+
+type Credential struct {
+	Username string `json:"username"`
+	HashedPW string `json:"hashedpw"`
+	SessionID int64 `json:"sessionid"`
 }
 
 func main() {
@@ -55,18 +64,23 @@ func main() {
 		v1.POST("/users", PostUser)
 		v1.PUT("/users/:id", UpdateUser)
 		v1.DELETE("/users/:id", DeleteUser)
-		v1.GET("/stories", GetStories)
-		v1.GET("/stories/:id", GetStory)
+		v1.POST("/auth", Login)
+		v1.DELETE("/auth", Logoff)
 	}
 
 	r.Run(":8080")
 }
 
-func initDb(name string) *gorp.DbMap {
-	db, err := sql.Open("mysql", "root:blahblah@/myapi")
+func initDB() *gorp.DbMap {
+	db, err := sql.Open("mysql", "root:blahblah@/" + DATABASE_NAME)
 	checkErr(err, "sql.Open failed")
 	dbmap := &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"}}
-	dbmap.AddTableWithName(User{}, name).SetKeys(true, "Id")
+	dbmap.AddTable(User{}).SetKeys(true, "Id")
+	dbmap.AddTable(MemberUser{}).SetKeys(true, "Id")
+	dbmap.AddTable(MemberStory{}).SetKeys(true, "Id")
+	dbmap.AddTable(Story{}).SetKeys(true, "Id")
+	dbmap.AddTable(Epic{}).SetKeys(true, "Id")
+	dbmap.AddTable(Session{}).SetKeys(false, "SessionID")
 	err = dbmap.CreateTablesIfNotExists()
 	checkErr(err, "Create table failed")
 
@@ -79,7 +93,7 @@ func checkErr(err error, msg string) {
 	}
 }
 
-var dbmap = initDb("User")
+var dbmap = initDB()
 
 func GetUsers(c *gin.Context) {
 	var users []User
@@ -104,8 +118,9 @@ func GetUser(c *gin.Context) {
 
 		content := &User{
 			Id: user_id,
-			Firstname: user.Firstname,
-			Lastname: user.Lastname,
+			Username: user.Username,
+			HashedPW: user.HashedPW,
+			Email: user.Email,
 		}
 		c.JSON(200, content)
 	} else {
@@ -119,15 +134,16 @@ func PostUser(c *gin.Context) {
 	var user User
 	c.Bind(&user)
 
-	if user.Firstname != "" && user.Lastname != "" {
+	if user.Username != "" && user.HashedPW != "" && user.Email != "" {
 
-		if insert, _ := dbmap.Exec(`INSERT INTO User (firstname, lastname) VALUES (?, ?)`, user.Firstname, user.Lastname); insert != nil {
+		if insert, _ := dbmap.Exec(`INSERT INTO User (username, hashedpw, email) VALUES (?, ?, ?)`, user.Username, user.HashedPW, user.Email); insert != nil {
 			user_id, err := insert.LastInsertId()
 			if err == nil {
 				content := &User{
 					Id: user_id,
-					Firstname: user.Firstname,
-					Lastname: user.Lastname,
+					Username: user.Username,
+					HashedPW: user.HashedPW,
+					Email: user.Email,
 				}
 				c.JSON(201, content)
 			} else {
@@ -139,13 +155,13 @@ func PostUser(c *gin.Context) {
 		c.JSON(422, gin.H{"error": "fields are empty"})
 	}
 
-// curl -i -X POST -H "Content-Type: application/json" -d "{ \"firstname\": \"Thea\", \"lastname\": \"Queen\" }" http://localhost:8080/api/v1/users
+// curl -i -X POST -H "Content-Type: application/json" -d "{ \"username\": \"Test\", \"hashedpw\": \"abc\", \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/users
 }
 
 func UpdateUser(c *gin.Context) {
 	id := c.Params.ByName("id")
 	var user User
-	err := dbmap.SelectOne(&user, "SELECT * FROM user WHERE id=?", id)
+	err := dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", id)
 
 	if err == nil {
 		var json User
@@ -155,11 +171,12 @@ func UpdateUser(c *gin.Context) {
 
 		user := User{
 			Id: user_id,
-			Firstname: json.Firstname,
-			Lastname: json.Lastname,
+			Username: json.Username,
+			HashedPW: json.HashedPW,
+			Email: json.Email,
 		}
 
-		if user.Firstname != "" && user.Lastname != ""{
+		if user.Username != "" && user.HashedPW != "" && user.Email != ""{
 			_, err = dbmap.Update(&user)
 
 			if err == nil {
@@ -176,14 +193,14 @@ func UpdateUser(c *gin.Context) {
 		c.JSON(404, gin.H{"error": "user not found"})
 	}
 
-// curl -i -X PUT -H "Content-Type: application/json" -d "{ \"firstname\": \"Thea\", \"lastname\": \"Merlyn\" }" http://localhost:8080/api/v1/users/1
+// curl -i -X PUT -H "Content-Type: application/json" -d "{ \"username\": \"Test\", \"hashedpw\": \"cba\", \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/users/1
 }
 
 func DeleteUser(c *gin.Context) {
 	id := c.Params.ByName("id")
 
 	var user User
-	err := dbmap.SelectOne(&user, "SELECT id FROM user WHERE id=?", id)
+	err := dbmap.SelectOne(&user, "SELECT id FROM User WHERE id=?", id)
 
 	if err == nil {
 		_, err = dbmap.Delete(&user)
@@ -201,9 +218,44 @@ func DeleteUser(c *gin.Context) {
 // curl -i -X DELETE http://localhost:8080/api/v1/users/1
 }
 
-func GetStories(c *gin.Context) {
+func Login(c *gin.Context) {
+	tentativeSession := rand.Int63()
+	var user Credential
+	var cmp User
+	c.Bind(&user)
+	if user.Username != "" && user.HashedPW != ""{
+		err := dbmap.SelectOne(&cmp, "SELECT * FROM User WHERE username=?", user.Username)
+		if err == nil && cmp.HashedPW == user.HashedPW {
+				dbmap.Exec(`INSERT INTO Session (sessionid, userid) VALUES (?, ?)`, tentativeSession, cmp.Id);
+				c.JSON(201, gin.H{"user": cmp, "token": tentativeSession})
+		} else {
+			c.JSON(404, gin.H{"error": "user not found"})
+		}
 
+	} else {
+		c.JSON(422, gin.H{"error": "fields are empty"})
+	}
+
+// curl -i -X POST -H "Content-Type: application/json" -d "{ \"username\": \"Test\", \"hashedpw\": \"cba\" }" http://localhost:8080/api/v1/auth
 }
-func GetStory(c *gin.Context) {
-	
+
+func Logoff(c *gin.Context) {
+	var user Credential
+	sessID := strconv.ParseInt(user.SessionID, 0, 64)
+	c.Bind(&user)
+	var session Session
+	err := dbmap.SelectOne(&session, "SELECT * FROM Session WHERE sessionid=?", sessID)
+
+	if err == nil {
+		_, err = dbmap.Delete(&session)
+
+		if err == nil {
+			c.JSON(200, gin.H{"id #" + sessID: " deleted"})
+		} else {
+			checkErr(err, "Delete failed")
+		}
+
+	} else {
+		c.JSON(404, gin.H{"error": "session not found"})
+	}
 }
