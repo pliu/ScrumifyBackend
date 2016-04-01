@@ -15,7 +15,9 @@ func init() {
 	Dbmap = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"}}
 	Dbmap.AddTable(User{}).SetKeys(true, "Id")
 	Dbmap.AddTable(EpicUserMap{}).SetKeys(true, "Id")
-	Dbmap.AddTable(EpicStoryMap{}).SetKeys(true, "Id")
+	Dbmap.AddTable(EpicModuleMap{}).SetKeys(true, "Id")
+	Dbmap.AddTable(ModuleStoryMap{}).SetKeys(true, "Id")
+	Dbmap.AddTable(ModuleDependencyMap{}).SetKeys(true, "Id")
 	Dbmap.AddTable(Story{}).SetKeys(true, "Id")
 	Dbmap.AddTable(Epic{}).SetKeys(true, "Id")
 	err = Dbmap.CreateTablesIfNotExists()

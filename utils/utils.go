@@ -9,3 +9,7 @@ func CheckErr(err error, msg string) {
 		log.Fatalln(msg, err)
 	}
 }
+
+func ConvertTime(time string) {
+
+}

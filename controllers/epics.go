@@ -5,24 +5,19 @@ import (
 	"TodoBackend/utils"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	//"strconv"
+	"strconv"
 )
 
 func GetEpics(c *gin.Context) {
 	id := c.Params.ByName("id")
-	epics, err := GetEpicsByUser(id)
+	var epics []models.Epic
+	_, err := models.Dbmap.Select(&epics, "SELECT * FROM Epic WHERE id IN (SELECT epicid FROM EpicUserMap WHERE userid=?)", id)
 
 	if err == nil {
 		c.JSON(http.StatusOK, epics)
 	} else {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Can't find associated epics"})
 	}
-}
-
-func GetEpicsByUser(user_id string) ([]models.Epic, error) {
-	var epics []models.Epic
-	_, err := models.Dbmap.Select(&epics, "SELECT * FROM Epic WHERE id IN (SELECT epicid FROM EpicUserMap WHERE userid=?)", user_id)
-	return epics, err
 }
 
 func PostEpic(c *gin.Context) {
@@ -42,7 +37,7 @@ func PostEpic(c *gin.Context) {
 				}
 				c.JSON(http.StatusCreated, content)
 			} else {
-				utils.CheckErr(err, "Insert failed")
+				utils.CheckErr(err, "Insert epic failed")
 			}
 		}
 
@@ -51,65 +46,122 @@ func PostEpic(c *gin.Context) {
 	}
 }
 
-/*func UpdateEpic(c *gin.Context) {
+func UpdateEpic(c *gin.Context) {
 	id := c.Params.ByName("id")
-	var user models.User
-	err := models.Dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", id)
+	epic_id := c.Params.ByName("epicid")
 
-	if err == nil {
-		var json models.User
-		c.Bind(&json)
+	if CheckEpicOwnedByUser(id, epic_id) {
+		var epic models.Epic
+		err := models.Dbmap.SelectOne(&epic, "SELECT * FROM Epic WHERE id=?", epic_id)
 
-		user_id, _ := strconv.ParseInt(id, 0, 64)
+		if err == nil {
+			var json models.Epic
+			c.Bind(&json)
 
-		user := models.User{
-			Id:       user_id,
-			Username: json.Username,
-			HashedPW: json.HashedPW,
-			Email:    json.Email,
-		}
+			epic := models.Epic{
+				Id:   epic.Id,
+				Name: json.Name,
+			}
 
-		if user.Username != "" && user.HashedPW != "" && user.Email != "" {
-			_, err = models.Dbmap.Update(&user)
+			if epic.Name != "" {
+				_, err = models.Dbmap.Update(&epic)
 
-			if err == nil {
-				c.JSON(200, user)
+				if err == nil {
+					c.JSON(200, epic)
+				} else {
+					utils.CheckErr(err, "Updated epic failed")
+				}
+
 			} else {
-				utils.CheckErr(err, "Updated failed")
+				c.JSON(422, gin.H{"error": "Field(s) is(are) empty"})
 			}
 
 		} else {
-			c.JSON(422, gin.H{"error": "Field(s) is(are) empty"})
+			c.JSON(404, gin.H{"error": "Epic not found"})
 		}
-
 	} else {
-		c.JSON(404, gin.H{"error": "User not found"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic not owned by you"})
 	}
-}*/
+}
 
-// Still need to recursively delete all stories that are members of this epic
 func DeleteEpic(c *gin.Context) {
 	id := c.Params.ByName("id")
+	epic_id := c.Params.ByName("epicid")
 
-	var epic models.Epic
-	err := models.Dbmap.SelectOne(&epic, "SELECT id FROM User WHERE id=?", id)
-
-	if err == nil {
-		_, err = models.Dbmap.Delete(&epic)
+	if CheckEpicOwnedByUser(id, epic_id) {
+		var mapping models.EpicUserMap
+		err := models.Dbmap.SelectOne(&mapping, "SELECT id FROM EpicUserMap WHERE userid=? AND epicid=?", id, epic_id)
 
 		if err == nil {
-			c.JSON(http.StatusOK, gin.H{"id #" + id: " deleted"})
-		} else {
-			utils.CheckErr(err, "Delete failed")
-		}
+			_, err = models.Dbmap.Delete(&mapping)
 
+			if err == nil {
+				c.JSON(http.StatusOK, gin.H{"id #" + epic_id: " deleted"})
+				RemoveUnownedEpic(mapping.EpicID)
+			} else {
+				utils.CheckErr(err, "Delete epic failed")
+			}
+
+		} else {
+			c.JSON(404, gin.H{"error": "Epic not found"})
+		}
 	} else {
-		c.JSON(404, gin.H{"error": "User not found"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic not owned by you"})
 	}
 }
 
-/*
-func addUser(c *gin.Context) {
+func AddUserToEpic(c *gin.Context) {
+	id := c.Params.ByName("id")
+	epic_id := c.Params.ByName("epicid")
 
+	if CheckEpicOwnedByUser(id, epic_id) {
+		var email models.EmailIn
+		c.Bind(&email)
+		user, err := GetUserByEmail(email.Email)
+
+		if err == nil {
+			var mapping models.EpicUserMap
+			err = models.Dbmap.SelectOne(&mapping, "SELECT * FROM EpicUserMap WHERE userid=? AND epicid=?", user.Id, epic_id)
+			if err == nil {
+				models.Dbmap.Exec(`INSERT INTO EpicUserMap (userid, epicid) VALUES (?, ?)`, user.Id, epic_id)
+				int_epic_id, _ := strconv.ParseInt(epic_id, 10, 64)
+				mapping = models.EpicUserMap{
+					EpicID: int_epic_id,
+					UserID: user.Id,
+					Id:     0,
+				}
+				c.JSON(http.StatusOK, mapping)
+			} else {
+				c.JSON(http.StatusOK, gin.H{"error": "User already a member of the project"})
+			}
+		} else {
+			c.JSON(404, gin.H{"error": "User not found"})
+		}
+	} else {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic not owned by you"})
+	}
 }
-*/
+
+func RemoveUnownedEpic(epic_id int64) {
+	var mappings []models.EpicUserMap
+	_, err := models.Dbmap.Select(&mappings, "SELECT * FROM EpicUserMap WHERE epicid=?", epic_id)
+	if len(mappings) == 0 {
+		mapping := models.EpicUserMap{
+			Id: epic_id,
+		}
+		_, err = models.Dbmap.Delete(&mapping)
+		if err != nil {
+			utils.CheckErr(err, "Delete unowned epic failed")
+		}
+	}
+}
+
+func CheckEpicOwnedByUser(user_id string, epic_id string) bool {
+	var check models.EpicUserMap
+	err := models.Dbmap.SelectOne(&check, "SELECT * FROM EpicUserMap WHERE userid=? AND epicid=?", user_id, epic_id)
+	if err == nil {
+		return true
+	} else {
+		return false
+	}
+}

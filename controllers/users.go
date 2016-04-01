@@ -5,7 +5,7 @@ import (
 	"TodoBackend/utils"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
+	"strings"
 )
 
 func GetUsers(c *gin.Context) {
@@ -25,15 +25,8 @@ func GetUser(c *gin.Context) {
 	err := models.Dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", id)
 
 	if err == nil {
-		user_id, _ := strconv.ParseInt(id, 0, 64)
 
-		content := &models.User{
-			Id:       user_id,
-			Username: user.Username,
-			HashedPW: user.HashedPW,
-			Email:    user.Email,
-		}
-		c.JSON(http.StatusOK, content)
+		c.JSON(http.StatusOK, scrubUser(user))
 	} else {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 	}
@@ -45,18 +38,15 @@ func PostUser(c *gin.Context) {
 
 	if user.Username != "" && user.HashedPW != "" && user.Email != "" {
 
+		user.Email = strings.ToUpper(user.Email)
 		if insert, _ := models.Dbmap.Exec(`INSERT INTO User (username, hashedpw, email) VALUES (?, ?, ?)`, user.Username, user.HashedPW, user.Email); insert != nil {
 			user_id, err := insert.LastInsertId()
 			if err == nil {
-				content := &models.User{
-					Id:       user_id,
-					Username: user.Username,
-					HashedPW: user.HashedPW,
-					Email:    user.Email,
-				}
-				c.JSON(201, content)
+				user.Id = user_id
+				user.Email = user.Email
+				c.JSON(201, scrubUser(user))
 			} else {
-				utils.CheckErr(err, "Insert failed")
+				utils.CheckErr(err, "Insert user failed")
 			}
 		}
 
@@ -74,22 +64,20 @@ func UpdateUser(c *gin.Context) {
 		var json models.User
 		c.Bind(&json)
 
-		user_id, _ := strconv.ParseInt(id, 0, 64)
-
 		user := models.User{
-			Id:       user_id,
+			Id:       user.Id,
 			Username: json.Username,
 			HashedPW: json.HashedPW,
-			Email:    json.Email,
+			Email:    strings.ToUpper(json.Email),
 		}
 
 		if user.Username != "" && user.HashedPW != "" && user.Email != "" {
 			_, err = models.Dbmap.Update(&user)
 
 			if err == nil {
-				c.JSON(200, user)
+				c.JSON(200, scrubUser(user))
 			} else {
-				utils.CheckErr(err, "Updated failed")
+				utils.CheckErr(err, "Update user failed")
 			}
 
 		} else {
@@ -101,7 +89,6 @@ func UpdateUser(c *gin.Context) {
 	}
 }
 
-// Still need to recursively delete all epics that contain only this user as a member
 func DeleteUser(c *gin.Context) {
 	id := c.Params.ByName("id")
 
@@ -113,11 +100,41 @@ func DeleteUser(c *gin.Context) {
 
 		if err == nil {
 			c.JSON(200, gin.H{"id #" + id: " deleted"})
+			removeUserMappings(id)
 		} else {
-			utils.CheckErr(err, "Delete failed")
+			utils.CheckErr(err, "Delete user failed")
 		}
 
 	} else {
 		c.JSON(404, gin.H{"error": "User not found"})
 	}
+}
+
+func GetUserByEmail(email string) (models.User, error) {
+	email = strings.ToUpper(email)
+	var user models.User
+	err := models.Dbmap.SelectOne(&user, "SELECT id FROM User WHERE email=?", email)
+	return user, err
+}
+
+func removeUserMappings(user_id string) {
+	var mappings []models.EpicUserMap
+	models.Dbmap.Select(&mappings, "SELECT * FROM EpicUserMap WHERE userid=?", user_id)
+	for _, mapping := range mappings {
+		_, err := models.Dbmap.Delete(&mapping)
+		if err != nil {
+			utils.CheckErr(err, "Delete user mapping failed")
+		}
+		RemoveUnownedEpic(mapping.EpicID)
+	}
+}
+
+func scrubUser(user models.User) models.User {
+	scrubbed_user := models.User{
+		Id:       user.Id,
+		Username: user.Username,
+		HashedPW: "",
+		Email:    user.Email,
+	}
+	return scrubbed_user
 }
