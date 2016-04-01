@@ -39,17 +39,21 @@ func PostUser(c *gin.Context) {
 	if user.Username != "" && user.HashedPW != "" && user.Email != "" {
 
 		user.Email = strings.ToUpper(user.Email)
-		if insert, _ := models.Dbmap.Exec(`INSERT INTO User (username, hashedpw, email) VALUES (?, ?, ?)`, user.Username, user.HashedPW, user.Email); insert != nil {
-			user_id, err := insert.LastInsertId()
-			if err == nil {
-				user.Id = user_id
-				user.Email = user.Email
-				c.JSON(201, scrubUser(user))
-			} else {
-				utils.CheckErr(err, "Insert user failed")
+		_, err := GetUserByEmail(user.Email)
+		if err != nil {
+			if insert, _ := models.Dbmap.Exec(`INSERT INTO User (username, hashedpw, email) VALUES (?, ?, ?)`, user.Username, user.HashedPW, user.Email); insert != nil {
+				user_id, nerr := insert.LastInsertId()
+				if nerr == nil {
+					user.Id = user_id
+					user.Email = user.Email
+					c.JSON(201, scrubUser(user))
+				} else {
+					utils.CheckErr(nerr, "Insert user failed")
+				}
 			}
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already being used"})
 		}
-
 	} else {
 		c.JSON(422, gin.H{"error": "Field(s) is(are) empty"})
 	}
@@ -64,24 +68,31 @@ func UpdateUser(c *gin.Context) {
 		var json models.User
 		c.Bind(&json)
 
-		user := models.User{
-			Id:       user.Id,
-			Username: json.Username,
-			HashedPW: json.HashedPW,
-			Email:    strings.ToUpper(json.Email),
-		}
+		json.Email = strings.ToUpper(json.Email)
 
-		if user.Username != "" && user.HashedPW != "" && user.Email != "" {
-			_, err = models.Dbmap.Update(&user)
-
-			if err == nil {
-				c.JSON(200, scrubUser(user))
-			} else {
-				utils.CheckErr(err, "Update user failed")
+		_, err = GetUserByEmail(json.Email)
+		if err != nil {
+			user := models.User{
+				Id:       user.Id,
+				Username: json.Username,
+				HashedPW: json.HashedPW,
+				Email:    json.Email,
 			}
 
+			if user.Username != "" && user.HashedPW != "" && user.Email != "" {
+				_, err = models.Dbmap.Update(&user)
+
+				if err == nil {
+					c.JSON(200, scrubUser(user))
+				} else {
+					utils.CheckErr(err, "Update user failed")
+				}
+
+			} else {
+				c.JSON(422, gin.H{"error": "Field(s) is(are) empty"})
+			}
 		} else {
-			c.JSON(422, gin.H{"error": "Field(s) is(are) empty"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already being used"})
 		}
 
 	} else {
@@ -99,7 +110,7 @@ func DeleteUser(c *gin.Context) {
 		_, err = models.Dbmap.Delete(&user)
 
 		if err == nil {
-			c.JSON(200, gin.H{"id #" + id: " deleted"})
+			c.JSON(200, gin.H{"id #" + id: "User deleted"})
 			removeUserMappings(id)
 		} else {
 			utils.CheckErr(err, "Delete user failed")
@@ -107,6 +118,16 @@ func DeleteUser(c *gin.Context) {
 
 	} else {
 		c.JSON(404, gin.H{"error": "User not found"})
+	}
+}
+
+func UserExists(user_id string) bool {
+	var user models.User
+	err := models.Dbmap.SelectOne(&user, "SELECT id FROM User WHERE id=?", user_id)
+	if err == nil {
+		return true
+	} else {
+		return false
 	}
 }
 

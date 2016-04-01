@@ -22,27 +22,31 @@ func GetEpics(c *gin.Context) {
 
 func PostEpic(c *gin.Context) {
 	id := c.Params.ByName("id")
-	var epic models.Epic
-	c.Bind(&epic)
+	if UserExists(id) {
+		var epic models.Epic
+		c.Bind(&epic)
 
-	if epic.Name != "" {
+		if epic.Name != "" {
 
-		if insert, _ := models.Dbmap.Exec(`INSERT INTO Epic (name) VALUES (?)`, epic.Name); insert != nil {
-			epic_id, err := insert.LastInsertId()
-			if err == nil {
-				models.Dbmap.Exec(`INSERT INTO EpicUserMap (userid, epicid) VALUES (?, ?)`, id, epic_id)
-				content := &models.Epic{
-					Id:   epic_id,
-					Name: epic.Name,
+			if insert, _ := models.Dbmap.Exec(`INSERT INTO Epic (name) VALUES (?)`, epic.Name); insert != nil {
+				epic_id, err := insert.LastInsertId()
+				if err == nil {
+					models.Dbmap.Exec(`INSERT INTO EpicUserMap (userid, epicid) VALUES (?, ?)`, id, epic_id)
+					content := &models.Epic{
+						Id:   epic_id,
+						Name: epic.Name,
+					}
+					c.JSON(http.StatusCreated, content)
+				} else {
+					utils.CheckErr(err, "Insert epic failed")
 				}
-				c.JSON(http.StatusCreated, content)
-			} else {
-				utils.CheckErr(err, "Insert epic failed")
 			}
-		}
 
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Field(s) is(are) empty"})
+		}
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Field(s) is(are) empty"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User does not exist"})
 	}
 }
 
@@ -90,13 +94,12 @@ func DeleteEpic(c *gin.Context) {
 
 	if CheckEpicOwnedByUser(id, epic_id) {
 		var mapping models.EpicUserMap
-		err := models.Dbmap.SelectOne(&mapping, "SELECT id FROM EpicUserMap WHERE userid=? AND epicid=?", id, epic_id)
+		err := models.Dbmap.SelectOne(&mapping, "SELECT * FROM EpicUserMap WHERE userid=? AND epicid=?", id, epic_id)
 
 		if err == nil {
 			_, err = models.Dbmap.Delete(&mapping)
-
 			if err == nil {
-				c.JSON(http.StatusOK, gin.H{"id #" + epic_id: " deleted"})
+				c.JSON(http.StatusOK, gin.H{"id #" + epic_id: "Deleted from " + id + "'s list"})
 				RemoveUnownedEpic(mapping.EpicID)
 			} else {
 				utils.CheckErr(err, "Delete epic failed")
@@ -122,7 +125,7 @@ func AddUserToEpic(c *gin.Context) {
 		if err == nil {
 			var mapping models.EpicUserMap
 			err = models.Dbmap.SelectOne(&mapping, "SELECT * FROM EpicUserMap WHERE userid=? AND epicid=?", user.Id, epic_id)
-			if err == nil {
+			if err != nil {
 				models.Dbmap.Exec(`INSERT INTO EpicUserMap (userid, epicid) VALUES (?, ?)`, user.Id, epic_id)
 				int_epic_id, _ := strconv.ParseInt(epic_id, 10, 64)
 				mapping = models.EpicUserMap{
@@ -146,10 +149,10 @@ func RemoveUnownedEpic(epic_id int64) {
 	var mappings []models.EpicUserMap
 	_, err := models.Dbmap.Select(&mappings, "SELECT * FROM EpicUserMap WHERE epicid=?", epic_id)
 	if len(mappings) == 0 {
-		mapping := models.EpicUserMap{
+		epic := models.Epic{
 			Id: epic_id,
 		}
-		_, err = models.Dbmap.Delete(&mapping)
+		_, err = models.Dbmap.Delete(&epic)
 		if err != nil {
 			utils.CheckErr(err, "Delete unowned epic failed")
 		}
