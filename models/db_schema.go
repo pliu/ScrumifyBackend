@@ -16,14 +16,12 @@ type EpicUserMap struct {
 
 // Which modules are part of which epics
 type EpicModuleMap struct {
-	Id       int64 `db:"id" json:"id"`
 	ModuleID int64 `db:"moduleid" json:"moduleid"`
 	EpicID   int64 `db:"epicid" json:"epicid"`
 }
 
 // Which stories are part of which modules
 type ModuleStoryMap struct {
-	Id       int64 `db:"id" json:"id"`
 	ModuleID int64 `db:"moduleid" json:"moduleid"`
 	StoryID  int64 `db:"storyid" json:"storyid"`
 }

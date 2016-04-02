@@ -32,11 +32,8 @@ func PostEpic(c *gin.Context) {
 				epic_id, err := insert.LastInsertId()
 				if err == nil {
 					models.Dbmap.Exec(`INSERT INTO EpicUserMap (userid, epicid) VALUES (?, ?)`, id, epic_id)
-					content := &models.Epic{
-						Id:   epic_id,
-						Name: epic.Name,
-					}
-					c.JSON(http.StatusCreated, content)
+					epic.Id = epic_id
+					c.JSON(http.StatusCreated, epic)
 				} else {
 					utils.CheckErr(err, "Insert epic failed")
 				}
@@ -135,7 +132,7 @@ func AddUserToEpic(c *gin.Context) {
 				}
 				c.JSON(http.StatusOK, mapping)
 			} else {
-				c.JSON(http.StatusOK, gin.H{"error": "User already a member of the project"})
+				c.JSON(http.StatusOK, gin.H{"error": "User already a member of the epic"})
 			}
 		} else {
 			c.JSON(404, gin.H{"error": "User not found"})
@@ -155,6 +152,8 @@ func RemoveUnownedEpic(epic_id int64) {
 		_, err = models.Dbmap.Delete(&epic)
 		if err != nil {
 			utils.CheckErr(err, "Delete unowned epic failed")
+		} else {
+			RemoveEpicModules(epic_id)
 		}
 	}
 }
