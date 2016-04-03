@@ -5,13 +5,12 @@ import (
 	"TodoBackend/utils"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 )
 
 func GetModules(c *gin.Context) {
 	id := c.Params.ByName("id")
 	epic_id := c.Params.ByName("epicid")
-	if CheckEpicOwnedByUser(id, epic_id) {
+	if epicOwnedByUser(id, epic_id) {
 		var modules []models.ModuleIn
 		_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE id IN (SELECT moduleid FROM EpicModuleMap WHERE epicid=?)", epic_id)
 
@@ -32,7 +31,7 @@ func GetModules(c *gin.Context) {
 func PostModule(c *gin.Context) {
 	id := c.Params.ByName("id")
 	epic_id := c.Params.ByName("epicid")
-	if CheckEpicOwnedByUser(id, epic_id) {
+	if epicOwnedByUser(id, epic_id) {
 		var module models.ModuleIn
 		c.Bind(&module)
 
@@ -105,7 +104,7 @@ func DeleteModule(c *gin.Context) {
 	id := c.Params.ByName("id")
 	module_id := c.Params.ByName("moduleid")
 
-	if CheckModuleOwnedByUser(id, module_id) {
+	if moduleOwnedByUser(id, module_id) {
 		var module models.Module
 		err := models.Dbmap.SelectOne(&module, "SELECT * FROM Module WHERE id=?", module_id)
 
@@ -118,8 +117,8 @@ func DeleteModule(c *gin.Context) {
 				var mapping models.EpicModuleMap
 				models.Dbmap.SelectOne(&mapping, "SELECT * FROM EpicModuleMap WHERE moduleid=?", module_id)
 				models.Dbmap.Delete(&mapping)
-				RemoveModuleStories(module.Id)
-				removeModuleDependencies(module.Id)
+				go removeModuleStories(module.Id)
+				go removeModuleDependencies(module.Id)
 			} else {
 				utils.CheckErr(err, "Delete module failed")
 			}
@@ -130,45 +129,4 @@ func DeleteModule(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Module not owned by you"})
 	}
-}
-
-func RemoveEpicModules(epic_id int64) {
-	var mappings []models.EpicModuleMap
-	_, err := models.Dbmap.Select(&mappings, "SELECT * FROM EpicModuleMap WHERE epicid=?", epic_id)
-	for _, mapping := range mappings {
-		module := models.Module{
-			Id: mapping.ModuleID,
-		}
-		_, err = models.Dbmap.Delete(&module)
-		if err != nil {
-			utils.CheckErr(err, "Delete module failed")
-		} else {
-			models.Dbmap.Delete(&mapping)
-			RemoveModuleStories(module.Id)
-			removeModuleDependencies(module.Id)
-		}
-	}
-}
-
-func CheckModuleOwnedByUser(user_id string, module_id string) bool {
-	var check models.EpicModuleMap
-	err := models.Dbmap.SelectOne(&check, "SELECT * FROM EpicModuleMap WHERE moduleid=?", module_id)
-	if err == nil && CheckEpicOwnedByUser(user_id, strconv.FormatInt(check.EpicID, 10)) {
-		return true
-	} else {
-		return false
-	}
-}
-
-func putDependencies(module_id int64, dependencies []int64) {
-
-}
-
-func getDependencies(module_id int64) []int64 {
-	var dependencies []int64
-	return dependencies
-}
-
-func removeModuleDependencies(module_id int64) {
-
 }

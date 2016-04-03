@@ -22,7 +22,7 @@ func GetEpics(c *gin.Context) {
 
 func PostEpic(c *gin.Context) {
 	id := c.Params.ByName("id")
-	if UserExists(id) {
+	if userExists(id) {
 		var epic models.Epic
 		c.Bind(&epic)
 
@@ -51,7 +51,7 @@ func UpdateEpic(c *gin.Context) {
 	id := c.Params.ByName("id")
 	epic_id := c.Params.ByName("epicid")
 
-	if CheckEpicOwnedByUser(id, epic_id) {
+	if epicOwnedByUser(id, epic_id) {
 		var epic models.Epic
 		err := models.Dbmap.SelectOne(&epic, "SELECT * FROM Epic WHERE id=?", epic_id)
 
@@ -89,7 +89,7 @@ func DeleteEpic(c *gin.Context) {
 	id := c.Params.ByName("id")
 	epic_id := c.Params.ByName("epicid")
 
-	if CheckEpicOwnedByUser(id, epic_id) {
+	if epicOwnedByUser(id, epic_id) {
 		var mapping models.EpicUserMap
 		err := models.Dbmap.SelectOne(&mapping, "SELECT * FROM EpicUserMap WHERE userid=? AND epicid=?", id, epic_id)
 
@@ -97,7 +97,7 @@ func DeleteEpic(c *gin.Context) {
 			_, err = models.Dbmap.Delete(&mapping)
 			if err == nil {
 				c.JSON(http.StatusOK, gin.H{"id #" + epic_id: "Deleted from " + id + "'s list"})
-				RemoveUnownedEpic(mapping.EpicID)
+				go removeUnownedEpic(mapping.EpicID)
 			} else {
 				utils.CheckErr(err, "Delete epic failed")
 			}
@@ -114,10 +114,10 @@ func AddUserToEpic(c *gin.Context) {
 	id := c.Params.ByName("id")
 	epic_id := c.Params.ByName("epicid")
 
-	if CheckEpicOwnedByUser(id, epic_id) {
+	if epicOwnedByUser(id, epic_id) {
 		var email models.EmailIn
 		c.Bind(&email)
-		user, err := GetUserByEmail(email.Email)
+		user, err := getUserByEmail(email.Email)
 
 		if err == nil {
 			var mapping models.EpicUserMap
@@ -139,31 +139,5 @@ func AddUserToEpic(c *gin.Context) {
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic not owned by you"})
-	}
-}
-
-func RemoveUnownedEpic(epic_id int64) {
-	var mappings []models.EpicUserMap
-	_, err := models.Dbmap.Select(&mappings, "SELECT * FROM EpicUserMap WHERE epicid=?", epic_id)
-	if len(mappings) == 0 {
-		epic := models.Epic{
-			Id: epic_id,
-		}
-		_, err = models.Dbmap.Delete(&epic)
-		if err != nil {
-			utils.CheckErr(err, "Delete unowned epic failed")
-		} else {
-			RemoveEpicModules(epic_id)
-		}
-	}
-}
-
-func CheckEpicOwnedByUser(user_id string, epic_id string) bool {
-	var check models.EpicUserMap
-	err := models.Dbmap.SelectOne(&check, "SELECT * FROM EpicUserMap WHERE userid=? AND epicid=?", user_id, epic_id)
-	if err == nil {
-		return true
-	} else {
-		return false
 	}
 }

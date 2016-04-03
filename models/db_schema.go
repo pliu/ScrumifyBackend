@@ -1,12 +1,5 @@
 package models
 
-type User struct {
-	Id       int64  `db:"id" json:"id"`
-	Username string `db:"username" json:"username"`
-	HashedPW string `db:"hashedpw" json:"hashedpw"`
-	Email    string `db:"email" json:"email"`
-}
-
 // Which users are part of which epics
 type EpicUserMap struct {
 	Id     int64 `db:"id" json:"id"`
@@ -33,12 +26,11 @@ type ModuleDependencyMap struct {
 	DependeeID   int64 `db:"dependeeid" json:"dependeeid"`
 }
 
-type Story struct {
-	Id          int64  `db:"id" json:"id"`
-	Name        string `db:"name" json:"name"`
-	Description string `db:"description" json:"description"`
-	Points      int64  `db:"points" json:"points"`
-	Stage       int64  `db:"stage" json:"stage"`
+type User struct {
+	Id       int64  `db:"id" json:"id"`
+	Username string `db:"username" json:"username"`
+	HashedPW string `db:"hashedpw" json:"hashedpw"`
+	Email    string `db:"email" json:"email"`
 }
 
 type Epic struct {
@@ -51,4 +43,12 @@ type Module struct {
 	Name    string `db:"name" json:"name"`
 	DueDate string `db:"duedate" json:"duedate"`
 	Stage   int64  `db:"stage" json:"stage"`
+}
+
+type Story struct {
+	Id          int64  `db:"id" json:"id"`
+	Name        string `db:"name" json:"name"`
+	Description string `db:"description" json:"description"`
+	Points      int64  `db:"points" json:"points"`
+	Stage       int64  `db:"stage" json:"stage"`
 }

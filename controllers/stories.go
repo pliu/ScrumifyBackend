@@ -5,13 +5,12 @@ import (
 	"TodoBackend/utils"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 )
 
 func GetStories(c *gin.Context) {
 	id := c.Params.ByName("id")
 	module_id := c.Params.ByName("moduleid")
-	if CheckModuleOwnedByUser(id, module_id) {
+	if moduleOwnedByUser(id, module_id) {
 		var stories []models.Story
 		_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE id IN (SELECT storyid FROM ModuleStoryMap WHERE moduleid=?)", module_id)
 
@@ -28,7 +27,7 @@ func GetStories(c *gin.Context) {
 func PostStory(c *gin.Context) {
 	id := c.Params.ByName("id")
 	module_id := c.Params.ByName("moduleid")
-	if CheckModuleOwnedByUser(id, module_id) {
+	if moduleOwnedByUser(id, module_id) {
 		var story models.Story
 		c.Bind(&story)
 
@@ -100,7 +99,7 @@ func DeleteStory(c *gin.Context) {
 	id := c.Params.ByName("id")
 	story_id := c.Params.ByName("storyid")
 
-	if checkStoryOwnedByUser(id, story_id) {
+	if storyOwnedByUser(id, story_id) {
 		var story models.Story
 		err := models.Dbmap.SelectOne(&story, "SELECT * FROM Story WHERE id=?", story_id)
 
@@ -122,31 +121,5 @@ func DeleteStory(c *gin.Context) {
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Story not owned by you"})
-	}
-}
-
-func RemoveModuleStories(module_id int64) {
-	var mappings []models.ModuleStoryMap
-	_, err := models.Dbmap.Select(&mappings, "SELECT * FROM ModuleStoryMap WHERE moduleid=?", module_id)
-	for _, mapping := range mappings {
-		story := models.Story{
-			Id: mapping.StoryID,
-		}
-		_, err = models.Dbmap.Delete(&story)
-		if err != nil {
-			utils.CheckErr(err, "Delete story failed")
-		} else {
-			models.Dbmap.Delete(&mapping)
-		}
-	}
-}
-
-func checkStoryOwnedByUser(user_id string, story_id string) bool {
-	var check models.ModuleStoryMap
-	err := models.Dbmap.SelectOne(&check, "SELECT * FROM ModuleStoryMap WHERE storyid=?", story_id)
-	if err == nil && CheckModuleOwnedByUser(user_id, strconv.FormatInt(check.ModuleID, 10)) {
-		return true
-	} else {
-		return false
 	}
 }

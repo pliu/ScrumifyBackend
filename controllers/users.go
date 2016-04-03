@@ -39,7 +39,7 @@ func PostUser(c *gin.Context) {
 	if user.Username != "" && user.HashedPW != "" && user.Email != "" {
 
 		user.Email = strings.ToUpper(user.Email)
-		_, err := GetUserByEmail(user.Email)
+		_, err := getUserByEmail(user.Email)
 		if err != nil {
 			if insert, _ := models.Dbmap.Exec(`INSERT INTO User (username, hashedpw, email) VALUES (?, ?, ?)`, user.Username, user.HashedPW, user.Email); insert != nil {
 				user_id, nerr := insert.LastInsertId()
@@ -70,7 +70,7 @@ func UpdateUser(c *gin.Context) {
 
 		json.Email = strings.ToUpper(json.Email)
 
-		_, err = GetUserByEmail(json.Email)
+		_, err = getUserByEmail(json.Email)
 		if err != nil {
 			user := models.User{
 				Id:       user.Id,
@@ -111,7 +111,7 @@ func DeleteUser(c *gin.Context) {
 
 		if err == nil {
 			c.JSON(200, gin.H{"id #" + id: "User deleted"})
-			removeUserMappings(id)
+			go removeUserMappings(id)
 		} else {
 			utils.CheckErr(err, "Delete user failed")
 		}
@@ -119,43 +119,4 @@ func DeleteUser(c *gin.Context) {
 	} else {
 		c.JSON(404, gin.H{"error": "User not found"})
 	}
-}
-
-func UserExists(user_id string) bool {
-	var user models.User
-	err := models.Dbmap.SelectOne(&user, "SELECT id FROM User WHERE id=?", user_id)
-	if err == nil {
-		return true
-	} else {
-		return false
-	}
-}
-
-func GetUserByEmail(email string) (models.User, error) {
-	email = strings.ToUpper(email)
-	var user models.User
-	err := models.Dbmap.SelectOne(&user, "SELECT id FROM User WHERE email=?", email)
-	return user, err
-}
-
-func removeUserMappings(user_id string) {
-	var mappings []models.EpicUserMap
-	models.Dbmap.Select(&mappings, "SELECT * FROM EpicUserMap WHERE userid=?", user_id)
-	for _, mapping := range mappings {
-		_, err := models.Dbmap.Delete(&mapping)
-		if err != nil {
-			utils.CheckErr(err, "Delete user mapping failed")
-		}
-		RemoveUnownedEpic(mapping.EpicID)
-	}
-}
-
-func scrubUser(user models.User) models.User {
-	scrubbed_user := models.User{
-		Id:       user.Id,
-		Username: user.Username,
-		HashedPW: "",
-		Email:    user.Email,
-	}
-	return scrubbed_user
 }
