@@ -15,7 +15,7 @@ func GetUsers(c *gin.Context) {
 	if err == nil {
 		c.JSON(http.StatusOK, users)
 	} else {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No users in the table"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not access database"})
 	}
 }
 
@@ -25,7 +25,6 @@ func GetUser(c *gin.Context) {
 	err := models.Dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", id)
 
 	if err == nil {
-
 		c.JSON(http.StatusOK, scrubUser(user))
 	} else {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
@@ -36,8 +35,7 @@ func PostUser(c *gin.Context) {
 	var user models.User
 	c.Bind(&user)
 
-	if user.Username != "" && user.HashedPW != "" && user.Email != "" {
-
+	if validUser(user) {
 		user.Email = strings.ToUpper(user.Email)
 		_, err := getUserByEmail(user.Email)
 		if err != nil {
@@ -46,7 +44,7 @@ func PostUser(c *gin.Context) {
 				if nerr == nil {
 					user.Id = user_id
 					user.Email = user.Email
-					c.JSON(201, scrubUser(user))
+					c.JSON(http.StatusCreated, scrubUser(user))
 				} else {
 					utils.CheckErr(nerr, "Insert user failed")
 				}
@@ -55,7 +53,7 @@ func PostUser(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already being used"})
 		}
 	} else {
-		c.JSON(422, gin.H{"error": "Field(s) is(are) empty"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Field(s) is(are) empty"})
 	}
 }
 
@@ -79,24 +77,24 @@ func UpdateUser(c *gin.Context) {
 				Email:    json.Email,
 			}
 
-			if user.Username != "" && user.HashedPW != "" && user.Email != "" {
+			if validUser(user) {
 				_, err = models.Dbmap.Update(&user)
 
 				if err == nil {
-					c.JSON(200, scrubUser(user))
+					c.JSON(http.StatusOK, scrubUser(user))
 				} else {
 					utils.CheckErr(err, "Update user failed")
 				}
 
 			} else {
-				c.JSON(422, gin.H{"error": "Field(s) is(are) empty"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Field(s) is(are) empty"})
 			}
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already being used"})
 		}
 
 	} else {
-		c.JSON(404, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 	}
 }
 
@@ -110,13 +108,13 @@ func DeleteUser(c *gin.Context) {
 		_, err = models.Dbmap.Delete(&user)
 
 		if err == nil {
-			c.JSON(200, gin.H{"id #" + id: "User deleted"})
+			c.JSON(http.StatusOK, gin.H{"id #" + id: "User deleted"})
 			go removeUserMappings(id)
 		} else {
 			utils.CheckErr(err, "Delete user failed")
 		}
 
 	} else {
-		c.JSON(404, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 	}
 }

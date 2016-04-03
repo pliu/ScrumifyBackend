@@ -3,16 +3,17 @@ package controllers
 import (
 	"TodoBackend/models"
 	"TodoBackend/utils"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func GetModules(c *gin.Context) {
 	id := c.Params.ByName("id")
 	epic_id := c.Params.ByName("epicid")
 	if epicOwnedByUser(id, epic_id) {
-		var modules []models.ModuleIn
-		_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE id IN (SELECT moduleid FROM EpicModuleMap WHERE epicid=?)", epic_id)
+		var modules []models.RestModule
+		_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE owner=?", epic_id)
 
 		for _, module := range modules {
 			module.Dependencies = getDependencies(module.Id)
@@ -21,7 +22,7 @@ func GetModules(c *gin.Context) {
 		if err == nil {
 			c.JSON(http.StatusOK, modules)
 		} else {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Can't find associated modules"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not access database"})
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic not owned by you"})
@@ -32,15 +33,14 @@ func PostModule(c *gin.Context) {
 	id := c.Params.ByName("id")
 	epic_id := c.Params.ByName("epicid")
 	if epicOwnedByUser(id, epic_id) {
-		var module models.ModuleIn
+		var module models.RestModule
 		c.Bind(&module)
 
-		if module.Name != "" && (module.Stage == 0 || module.Stage == 1 || module.Stage == 2) {
+		if validModule(module, epic_id) {
 
-			if insert, _ := models.Dbmap.Exec(`INSERT INTO Module (name, duedate, stage) VALUES (?, ?, ?)`, module.Name, module.DueDate, module.Stage); insert != nil {
+			if insert, _ := models.Dbmap.Exec(`INSERT INTO Module (name, duedate, stage, owner) VALUES (?, ?, ?, ?)`, module.Name, module.DueDate, module.Stage, epic_id); insert != nil {
 				module_id, err := insert.LastInsertId()
 				if err == nil {
-					models.Dbmap.Exec(`INSERT INTO EpicModuleMap (moduleid, epicid) VALUES (?, ?)`, module_id, epic_id)
 					putDependencies(module_id, module.Dependencies)
 					module.Id = module_id
 					c.JSON(http.StatusCreated, module)
@@ -114,9 +114,6 @@ func DeleteModule(c *gin.Context) {
 
 			if err == nil {
 				c.JSON(http.StatusOK, gin.H{"id #" + module_id: "Deleted module"})
-				var mapping models.EpicModuleMap
-				models.Dbmap.SelectOne(&mapping, "SELECT * FROM EpicModuleMap WHERE moduleid=?", module_id)
-				models.Dbmap.Delete(&mapping)
 				go removeModuleStories(module.Id)
 				go removeModuleDependencies(module.Id)
 			} else {
@@ -124,7 +121,7 @@ func DeleteModule(c *gin.Context) {
 			}
 
 		} else {
-			c.JSON(404, gin.H{"error": "Module not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Module not found"})
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Module not owned by you"})

@@ -1,6 +1,6 @@
 package models
 
-type ModuleIn struct {
+type RestModule struct {
 	Id           int64   `json:"id"`
 	Name         string  `json:"name"`
 	DueDate      string  `json:"duedate"`
@@ -8,6 +8,6 @@ type ModuleIn struct {
 	Dependencies []int64 `json:"dependencies"`
 }
 
-type EmailIn struct {
+type RestEmail struct {
 	Email string `json:"email"`
 }

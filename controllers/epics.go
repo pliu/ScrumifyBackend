@@ -16,7 +16,7 @@ func GetEpics(c *gin.Context) {
 	if err == nil {
 		c.JSON(http.StatusOK, epics)
 	} else {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Can't find associated epics"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not access database"})
 	}
 }
 
@@ -26,7 +26,7 @@ func PostEpic(c *gin.Context) {
 		var epic models.Epic
 		c.Bind(&epic)
 
-		if epic.Name != "" {
+		if validEpic(epic) {
 
 			if insert, _ := models.Dbmap.Exec(`INSERT INTO Epic (name) VALUES (?)`, epic.Name); insert != nil {
 				epic_id, err := insert.LastInsertId()
@@ -64,21 +64,21 @@ func UpdateEpic(c *gin.Context) {
 				Name: json.Name,
 			}
 
-			if epic.Name != "" {
+			if validEpic(epic) {
 				_, err = models.Dbmap.Update(&epic)
 
 				if err == nil {
-					c.JSON(200, epic)
+					c.JSON(http.StatusOK, epic)
 				} else {
 					utils.CheckErr(err, "Updated epic failed")
 				}
 
 			} else {
-				c.JSON(422, gin.H{"error": "Field(s) is(are) empty"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Field(s) is(are) empty"})
 			}
 
 		} else {
-			c.JSON(404, gin.H{"error": "Epic not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Epic not found"})
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic not owned by you"})
@@ -103,7 +103,7 @@ func DeleteEpic(c *gin.Context) {
 			}
 
 		} else {
-			c.JSON(404, gin.H{"error": "Epic not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Epic not found"})
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic not owned by you"})
@@ -115,7 +115,7 @@ func AddUserToEpic(c *gin.Context) {
 	epic_id := c.Params.ByName("epicid")
 
 	if epicOwnedByUser(id, epic_id) {
-		var email models.EmailIn
+		var email models.RestEmail
 		c.Bind(&email)
 		user, err := getUserByEmail(email.Email)
 
@@ -135,7 +135,7 @@ func AddUserToEpic(c *gin.Context) {
 				c.JSON(http.StatusOK, gin.H{"error": "User already a member of the epic"})
 			}
 		} else {
-			c.JSON(404, gin.H{"error": "User not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic not owned by you"})

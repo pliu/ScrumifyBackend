@@ -12,12 +12,12 @@ func GetStories(c *gin.Context) {
 	module_id := c.Params.ByName("moduleid")
 	if moduleOwnedByUser(id, module_id) {
 		var stories []models.Story
-		_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE id IN (SELECT storyid FROM ModuleStoryMap WHERE moduleid=?)", module_id)
+		_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE owner=?", module_id)
 
 		if err == nil {
 			c.JSON(http.StatusOK, stories)
 		} else {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Can't find associated stories"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not access database"})
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Module not owned by you"})
@@ -31,12 +31,11 @@ func PostStory(c *gin.Context) {
 		var story models.Story
 		c.Bind(&story)
 
-		if story.Name != "" && (story.Stage == 0 || story.Stage == 1 || story.Stage == 2) {
+		if validStory(story) {
 
-			if insert, _ := models.Dbmap.Exec(`INSERT INTO Story (name, stage, description, points) VALUES (?, ?, ?, ?)`, story.Name, story.Stage, story.Description, story.Points); insert != nil {
+			if insert, _ := models.Dbmap.Exec(`INSERT INTO Story (name, stage, description, points, owner) VALUES (?, ?, ?, ?, ?)`, story.Name, story.Stage, story.Description, story.Points, module_id); insert != nil {
 				story_id, err := insert.LastInsertId()
 				if err == nil {
-					models.Dbmap.Exec(`INSERT INTO ModuleStoryMap (moduleid, storyid) VALUES (?, ?)`, module_id, story_id)
 					story.Id = story_id
 					c.JSON(http.StatusCreated, story)
 				} else {
@@ -109,15 +108,12 @@ func DeleteStory(c *gin.Context) {
 
 			if err == nil {
 				c.JSON(http.StatusOK, gin.H{"id #" + story_id: "Deleted story"})
-				var mapping models.ModuleStoryMap
-				models.Dbmap.SelectOne(&mapping, "SELECT * FROM ModuleStoryMap WHERE storyid=?", story_id)
-				models.Dbmap.Delete(&mapping)
 			} else {
 				utils.CheckErr(err, "Delete story failed")
 			}
 
 		} else {
-			c.JSON(404, gin.H{"error": "Story not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Story not found"})
 		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Story not owned by you"})

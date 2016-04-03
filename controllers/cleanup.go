@@ -1,3 +1,5 @@
+// Library of functions to asynchronously clean up after deletions
+
 package controllers
 
 import (
@@ -37,17 +39,13 @@ func removeUnownedEpic(epic_id int64) {
 
 // Async
 func removeEpicModules(epic_id int64) {
-	var mappings []models.EpicModuleMap
-	_, err := models.Dbmap.Select(&mappings, "SELECT * FROM EpicModuleMap WHERE epicid=?", epic_id)
-	for _, mapping := range mappings {
-		module := models.Module{
-			Id: mapping.ModuleID,
-		}
+	var modules []models.Module
+	_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE owner=?", epic_id)
+	for _, module := range modules {
 		_, err = models.Dbmap.Delete(&module)
 		if err != nil {
 			utils.CheckErr(err, "Delete module failed")
 		} else {
-			models.Dbmap.Delete(&mapping)
 			removeModuleStories(module.Id)
 			removeModuleDependencies(module.Id)
 		}
@@ -56,17 +54,12 @@ func removeEpicModules(epic_id int64) {
 
 // Async
 func removeModuleStories(module_id int64) {
-	var mappings []models.ModuleStoryMap
-	_, err := models.Dbmap.Select(&mappings, "SELECT * FROM ModuleStoryMap WHERE moduleid=?", module_id)
-	for _, mapping := range mappings {
-		story := models.Story{
-			Id: mapping.StoryID,
-		}
+	var stories []models.Story
+	_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE owner=?", module_id)
+	for _, story := range stories {
 		_, err = models.Dbmap.Delete(&story)
 		if err != nil {
 			utils.CheckErr(err, "Delete story failed")
-		} else {
-			models.Dbmap.Delete(&mapping)
 		}
 	}
 }
