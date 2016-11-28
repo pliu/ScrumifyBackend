@@ -13,7 +13,7 @@ func GetModules(c *gin.Context) {
 	epic_id := c.Params.ByName("epicid")
 	if epicOwnedByUser(id, epic_id) {
 		var modules []models.RestModule
-		_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE owner=?", epic_id)
+		_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE epicid=?", epic_id)
 
 		for _, module := range modules {
 			module.Dependencies = getDependencies(module.Id)
@@ -38,14 +38,14 @@ func PostModule(c *gin.Context) {
 
 		if validModule(module, epic_id) {
 
-			if insert, _ := models.Dbmap.Exec(`INSERT INTO Module (name, duedate, stage, owner) VALUES (?, ?, ?, ?)`, module.Name, module.DueDate, module.Stage, epic_id); insert != nil {
+			if insert, _ := models.Dbmap.Exec(`INSERT INTO Module (name, duedate, stage, epicid) VALUES (?, ?, ?, ?)`, module.Name, module.DueDate, module.Stage, epic_id); insert != nil {
 				module_id, err := insert.LastInsertId()
 				if err == nil {
 					putDependencies(module_id, module.Dependencies)
 					module.Id = module_id
 					c.JSON(http.StatusCreated, module)
 				} else {
-					utils.CheckErr(err, "Insert module failed")
+					utils.PrintErr(err, "Insert module failed")
 				}
 			}
 
@@ -117,7 +117,7 @@ func DeleteModule(c *gin.Context) {
 				go removeModuleStories(module.Id)
 				go removeModuleDependencies(module.Id)
 			} else {
-				utils.CheckErr(err, "Delete module failed")
+				utils.PrintErr(err, "Delete module failed")
 			}
 
 		} else {

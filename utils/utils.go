@@ -4,12 +4,14 @@ import (
 	"log"
 )
 
-func CheckErr(err error, msg string) {
+func FatalErr(err error, msg string) {
 	if err != nil {
 		log.Fatalln(msg, err)
 	}
 }
 
-func ConvertTime(time string) {
-
+func PrintErr(err error, msg string) {
+	if err != nil {
+		log.Println(msg, err)
+	}
 }

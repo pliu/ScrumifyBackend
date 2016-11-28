@@ -14,9 +14,9 @@ func removeUserMappings(user_id string) {
 	for _, mapping := range mappings {
 		_, err := models.Dbmap.Delete(&mapping)
 		if err != nil {
-			utils.CheckErr(err, "Delete user mapping failed")
+			utils.PrintErr(err, "Delete user mapping failed")
 		}
-		removeUnownedEpic(mapping.EpicID)
+		removeUnownedEpic(mapping.EpicId)
 	}
 }
 
@@ -30,7 +30,7 @@ func removeUnownedEpic(epic_id int64) {
 		}
 		_, err = models.Dbmap.Delete(&epic)
 		if err != nil {
-			utils.CheckErr(err, "Delete unowned epic failed")
+			utils.PrintErr(err, "Delete unowned epic failed")
 		} else {
 			removeEpicModules(epic_id)
 		}
@@ -40,11 +40,11 @@ func removeUnownedEpic(epic_id int64) {
 // Async
 func removeEpicModules(epic_id int64) {
 	var modules []models.Module
-	_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE owner=?", epic_id)
+	_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE epicid=?", epic_id)
 	for _, module := range modules {
 		_, err = models.Dbmap.Delete(&module)
 		if err != nil {
-			utils.CheckErr(err, "Delete module failed")
+			utils.PrintErr(err, "Delete module failed")
 		} else {
 			removeModuleStories(module.Id)
 			removeModuleDependencies(module.Id)
@@ -55,11 +55,11 @@ func removeEpicModules(epic_id int64) {
 // Async
 func removeModuleStories(module_id int64) {
 	var stories []models.Story
-	_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE owner=?", module_id)
+	_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE moduleid=?", module_id)
 	for _, story := range stories {
 		_, err = models.Dbmap.Delete(&story)
 		if err != nil {
-			utils.CheckErr(err, "Delete story failed")
+			utils.PrintErr(err, "Delete story failed")
 		}
 	}
 }

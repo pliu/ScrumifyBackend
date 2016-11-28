@@ -12,7 +12,7 @@ func GetStories(c *gin.Context) {
 	module_id := c.Params.ByName("moduleid")
 	if moduleOwnedByUser(id, module_id) {
 		var stories []models.Story
-		_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE owner=?", module_id)
+		_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE moduleid=?", module_id)
 
 		if err == nil {
 			c.JSON(http.StatusOK, stories)
@@ -33,13 +33,13 @@ func PostStory(c *gin.Context) {
 
 		if validStory(story) {
 
-			if insert, _ := models.Dbmap.Exec(`INSERT INTO Story (name, stage, description, points, owner) VALUES (?, ?, ?, ?, ?)`, story.Name, story.Stage, story.Description, story.Points, module_id); insert != nil {
+			if insert, _ := models.Dbmap.Exec(`INSERT INTO Story (name, stage, description, points, moduleid) VALUES (?, ?, ?, ?, ?)`, story.Name, story.Stage, story.Description, story.Points, module_id); insert != nil {
 				story_id, err := insert.LastInsertId()
 				if err == nil {
 					story.Id = story_id
 					c.JSON(http.StatusCreated, story)
 				} else {
-					utils.CheckErr(err, "Insert story failed")
+					utils.PrintErr(err, "Insert story failed")
 				}
 			}
 
@@ -109,7 +109,7 @@ func DeleteStory(c *gin.Context) {
 			if err == nil {
 				c.JSON(http.StatusOK, gin.H{"id #" + story_id: "Deleted story"})
 			} else {
-				utils.CheckErr(err, "Delete story failed")
+				utils.PrintErr(err, "Delete story failed")
 			}
 
 		} else {

@@ -5,21 +5,21 @@ import (
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql"
-	"gopkg.in/gorp.v1"
+	"gopkg.in/gorp.v2"
 )
 
 var Dbmap *gorp.DbMap
 
 func init() {
 	db, err := sql.Open("mysql", "root:"+utils.Conf.DB_PASSWORD+"@/"+utils.Conf.DB_NAME)
-	utils.CheckErr(err, "sql.Open failed")
+	utils.FatalErr(err, "sql.Open failed")
 	Dbmap = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"}}
-	Dbmap.AddTable(EpicUserMap{}).SetKeys(true, "Id")
-	Dbmap.AddTable(ModuleDependencyMap{}).SetKeys(true, "Id")
-	Dbmap.AddTable(User{}).SetKeys(true, "Id")
-	Dbmap.AddTable(Epic{}).SetKeys(true, "Id")
-	Dbmap.AddTable(Module{}).SetKeys(true, "Id")
-	Dbmap.AddTable(Story{}).SetKeys(true, "Id")
+	SetEpicUserMapProperties(Dbmap.AddTable(EpicUserMap{}))
+	SetModuleDependencyMapProperties(Dbmap.AddTable(ModuleDependencyMap{}))
+	SetUserProperties(Dbmap.AddTable(User{}))
+	SetEpicProperties(Dbmap.AddTable(Epic{}))
+	SetModuleProperties(Dbmap.AddTable(Module{}))
+	SetStoryProperties(Dbmap.AddTable(Story{}))
 	err = Dbmap.CreateTablesIfNotExists()
-	utils.CheckErr(err, "Create table failed")
+	utils.FatalErr(err, "Create table failed")
 }

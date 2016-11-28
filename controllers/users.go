@@ -5,12 +5,11 @@ import (
 	"TodoBackend/utils"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strings"
 )
 
 func GetUsers(c *gin.Context) {
 	var users []models.User
-	_, err := models.Dbmap.Select(&users, "SELECT * FROM User")
+	users, err := models.GetUsers()
 
 	if err == nil {
 		c.JSON(http.StatusOK, users)
@@ -21,11 +20,10 @@ func GetUsers(c *gin.Context) {
 
 func GetUser(c *gin.Context) {
 	id := c.Params.ByName("id")
-	var user models.User
-	err := models.Dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", id)
+	user, err := models.GetUser(id)
 
 	if err == nil {
-		c.JSON(http.StatusOK, scrubUser(user))
+		c.JSON(http.StatusOK, models.ScrubUser(user))
 	} else {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 	}
@@ -35,22 +33,17 @@ func PostUser(c *gin.Context) {
 	var user models.User
 	c.Bind(&user)
 
-	if validUser(user) {
-		user.Email = strings.ToUpper(user.Email)
-		_, err := getUserByEmail(user.Email)
+	if user.IsValid() {
+		_, err := models.GetUserByEmail(user.Email)
 		if err != nil {
-			if insert, _ := models.Dbmap.Exec(`INSERT INTO User (username, hashedpw, email) VALUES (?, ?, ?)`, user.Username, user.HashedPW, user.Email); insert != nil {
-				user_id, nerr := insert.LastInsertId()
-				if nerr == nil {
-					user.Id = user_id
-					user.Email = user.Email
-					c.JSON(http.StatusCreated, scrubUser(user))
-				} else {
-					utils.CheckErr(nerr, "Insert user failed")
-				}
+			user, err = models.CreateUser(user)
+			if err == nil {
+				c.JSON(http.StatusCreated, user)
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			}
 		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already being used"})
+			c.JSON(http.StatusConflict, gin.H{"error": "Email already being used"})
 		}
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Field(s) is(are) empty"})
@@ -59,33 +52,26 @@ func PostUser(c *gin.Context) {
 
 func UpdateUser(c *gin.Context) {
 	id := c.Params.ByName("id")
-	var user models.User
-	err := models.Dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", id)
+	user, err := models.GetUser(id)
 
 	if err == nil {
-		var json models.User
-		c.Bind(&json)
-
-		json.Email = strings.ToUpper(json.Email)
-
-		_, err = getUserByEmail(json.Email)
-		if err != nil {
-			user := models.User{
-				Id:       user.Id,
-				Username: json.Username,
-				HashedPW: json.HashedPW,
-				Email:    json.Email,
-			}
-
-			if validUser(user) {
-				_, err = models.Dbmap.Update(&user)
-
-				if err == nil {
-					c.JSON(http.StatusOK, scrubUser(user))
-				} else {
-					utils.CheckErr(err, "Update user failed")
+		var newUserInfo models.User
+		c.Bind(&newUserInfo)
+		existingUser, nerr := models.GetUserByEmail(newUserInfo.Email)
+		if nerr != nil || existingUser.Id == user.Id {
+			if newUserInfo.IsValid() {
+				user := models.User{
+					Id:       user.Id,
+					Username: newUserInfo.Username,
+					HashedPw: newUserInfo.HashedPw,
+					Email:    newUserInfo.Email,
 				}
-
+				user, err = models.UpdateUser(user)
+				if err == nil {
+					c.JSON(http.StatusOK, user)
+				} else {
+					utils.PrintErr(err, "Update user failed")  // Should probably return something to the client
+				}
 			} else {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Field(s) is(are) empty"})
 			}
@@ -100,20 +86,16 @@ func UpdateUser(c *gin.Context) {
 
 func DeleteUser(c *gin.Context) {
 	id := c.Params.ByName("id")
-
-	var user models.User
-	err := models.Dbmap.SelectOne(&user, "SELECT id FROM User WHERE id=?", id)
+	user, err := models.GetUser(id)
 
 	if err == nil {
-		_, err = models.Dbmap.Delete(&user)
-
+		err = models.DeleteUser(user)
 		if err == nil {
 			c.JSON(http.StatusOK, gin.H{"id #" + id: "User deleted"})
-			go removeUserMappings(id)
+			go removeUserMappings(id)  // Need to come back to this
 		} else {
-			utils.CheckErr(err, "Delete user failed")
+			utils.PrintErr(err, "Delete user failed")
 		}
-
 	} else {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 	}

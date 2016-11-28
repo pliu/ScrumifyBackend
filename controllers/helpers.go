@@ -3,7 +3,6 @@ package controllers
 import (
 	"TodoBackend/models"
 	"strconv"
-	"strings"
 )
 
 func userExists(user_id string) bool {
@@ -29,7 +28,7 @@ func epicOwnedByUser(user_id string, epic_id string) bool {
 func moduleOwnedByUser(user_id string, module_id string) bool {
 	var check models.Module
 	err := models.Dbmap.SelectOne(&check, "SELECT * FROM Module WHERE id=?", module_id)
-	if err == nil && epicOwnedByUser(user_id, strconv.FormatInt(check.Owner, 10)) {
+	if err == nil && epicOwnedByUser(user_id, strconv.FormatInt(check.EpicId, 10)) {
 		return true
 	} else {
 		return false
@@ -39,23 +38,7 @@ func moduleOwnedByUser(user_id string, module_id string) bool {
 func storyOwnedByUser(user_id string, story_id string) bool {
 	var check models.Story
 	err := models.Dbmap.SelectOne(&check, "SELECT * FROM Story WHERE id=?", story_id)
-	if err == nil && moduleOwnedByUser(user_id, strconv.FormatInt(check.Owner, 10)) {
-		return true
-	} else {
-		return false
-	}
-}
-
-func validUser(user models.User) bool {
-	if user.Username != "" && user.HashedPW != "" && user.Email != "" {
-		return true
-	} else {
-		return false
-	}
-}
-
-func validEpic(epic models.Epic) bool {
-	if epic.Name != "" {
+	if err == nil && moduleOwnedByUser(user_id, strconv.FormatInt(check.ModuleId, 10)) {
 		return true
 	} else {
 		return false
@@ -84,23 +67,6 @@ func validStory(story models.Story) bool {
 	} else {
 		return false
 	}
-}
-
-func getUserByEmail(email string) (models.User, error) {
-	email = strings.ToUpper(email)
-	var user models.User
-	err := models.Dbmap.SelectOne(&user, "SELECT id FROM User WHERE email=?", email)
-	return user, err
-}
-
-func scrubUser(user models.User) models.User {
-	scrubbed_user := models.User{
-		Id:       user.Id,
-		Username: user.Username,
-		HashedPW: "",
-		Email:    user.Email,
-	}
-	return scrubbed_user
 }
 
 func getDependencies(module_id int64) []int64 {

@@ -26,7 +26,7 @@ func PostEpic(c *gin.Context) {
 		var epic models.Epic
 		c.Bind(&epic)
 
-		if validEpic(epic) {
+		if epic.IsValid() {
 
 			if insert, _ := models.Dbmap.Exec(`INSERT INTO Epic (name) VALUES (?)`, epic.Name); insert != nil {
 				epic_id, err := insert.LastInsertId()
@@ -35,7 +35,7 @@ func PostEpic(c *gin.Context) {
 					epic.Id = epic_id
 					c.JSON(http.StatusCreated, epic)
 				} else {
-					utils.CheckErr(err, "Insert epic failed")
+					utils.PrintErr(err, "Insert epic failed")
 				}
 			}
 
@@ -64,13 +64,13 @@ func UpdateEpic(c *gin.Context) {
 				Name: json.Name,
 			}
 
-			if validEpic(epic) {
+			if epic.IsValid() {
 				_, err = models.Dbmap.Update(&epic)
 
 				if err == nil {
 					c.JSON(http.StatusOK, epic)
 				} else {
-					utils.CheckErr(err, "Updated epic failed")
+					utils.PrintErr(err, "Updated epic failed")
 				}
 
 			} else {
@@ -97,9 +97,9 @@ func DeleteEpic(c *gin.Context) {
 			_, err = models.Dbmap.Delete(&mapping)
 			if err == nil {
 				c.JSON(http.StatusOK, gin.H{"id #" + epic_id: "Deleted from " + id + "'s list"})
-				go removeUnownedEpic(mapping.EpicID)
+				go removeUnownedEpic(mapping.EpicId)
 			} else {
-				utils.CheckErr(err, "Delete epic failed")
+				utils.PrintErr(err, "Delete epic failed")
 			}
 
 		} else {
@@ -117,7 +117,7 @@ func AddUserToEpic(c *gin.Context) {
 	if epicOwnedByUser(id, epic_id) {
 		var email models.RestEmail
 		c.Bind(&email)
-		user, err := getUserByEmail(email.Email)
+		user, err := models.GetUserByEmail(email.Email)
 
 		if err == nil {
 			var mapping models.EpicUserMap
@@ -126,9 +126,8 @@ func AddUserToEpic(c *gin.Context) {
 				models.Dbmap.Exec(`INSERT INTO EpicUserMap (userid, epicid) VALUES (?, ?)`, user.Id, epic_id)
 				int_epic_id, _ := strconv.ParseInt(epic_id, 10, 64)
 				mapping = models.EpicUserMap{
-					EpicID: int_epic_id,
-					UserID: user.Id,
-					Id:     0,
+					EpicId: int_epic_id,
+					UserId: user.Id,
 				}
 				c.JSON(http.StatusOK, mapping)
 			} else {
