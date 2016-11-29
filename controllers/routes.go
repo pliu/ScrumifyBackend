@@ -37,17 +37,6 @@ func RegisterRoutes() *gin.Engine {
 		usersv1.POST("/users/:id/epics/:epicid", AddUserToEpic)
 		// curl -i -X POST -H "Content-Type: application/json" -d "{ \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/users/1/epics/2
 
-		usersv1.GET("/users/:id/epics/:epicid/modules", GetModules)
-		// curl -i http://localhost:8080/api/v1/users/1/epics/1/modules
-
-		usersv1.POST("/users/:id/epics/:epicid/modules", PostModule)
-		// curl -i -X POST -H "Content-Type: application/json" -d "{ \"name\": \"Test module\", \"stage\": 1 }" http://localhost:8080/api/v1/users/1/epics/1/modules
-
-		//usersv1.PUT("/users/:id/modules/:moduleid", UpdateModule)
-
-		usersv1.DELETE("/users/:id/modules/:moduleid", DeleteModule)
-		// curl -i -X DELETE http://localhost:8080/api/v1/users/1/modules/1
-
 		usersv1.GET("/users/:id/modules/:moduleid/stories", GetStories)
 		// curl -i http://localhost:8080/api/v1/users/1/modules/1/stories
 

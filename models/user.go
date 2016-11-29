@@ -3,7 +3,6 @@ package models
 import (
 	"strings"
 	"gopkg.in/gorp.v2"
-	"errors"
 )
 
 type User struct {
@@ -21,9 +20,9 @@ func SetUserProperties(table *gorp.TableMap) {
 	table.ColMap("Email").SetUnique(true).SetNotNull(true)
 }
 
-func GetUser(id string) (User, error) {
+func GetUser(user_id string) (User, error) {
 	var user User
-	err := Dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", id)
+	err := Dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", user_id)
 	return user, err
 }
 
@@ -35,16 +34,8 @@ func GetUsers() ([]User, error) {
 
 func CreateUser(user User) (User, error) {
 	user.Email = strings.ToLower(user.Email)
-	if insert, _ := Dbmap.Exec(`INSERT INTO User (username, hashedpw, email) VALUES (?, ?, ?)`, user.Username,
-			user.HashedPw, user.Email); insert != nil {
-		user_id, nerr := insert.LastInsertId()
-		if nerr == nil {
-			user.Id = user_id
-		}
-		return ScrubUser(user), nerr
-	} else {
-		return ScrubUser(user), errors.New("Failed to insert user into database")
-	}
+	err := Dbmap.Insert(&user)
+	return ScrubUser(user), err
 }
 
 func UpdateUser(user User) (User, error) {
@@ -54,8 +45,22 @@ func UpdateUser(user User) (User, error) {
 }
 
 func DeleteUser(user User) error {
-	_, err := Dbmap.Delete(&user)
-	return err
+	trans, err := Dbmap.Begin()
+	if err != nil {
+		return err
+	}
+
+	if _, err = trans.Delete(&user); err == nil {
+		if _, err = trans.Exec("DELETE FROM EpicUserMap WHERE userid=?", user.Id); err == nil {
+			return trans.Commit()
+		} else {
+			trans.Rollback()
+			return err
+		}
+	} else {
+		trans.Rollback()
+		return err
+	}
 }
 
 func GetUserByEmail(email string) (User, error) {

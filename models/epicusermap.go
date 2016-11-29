@@ -17,18 +17,18 @@ func SetEpicUserMapProperties(table *gorp.TableMap) {
 	table.ColMap("EpicId").SetNotNull(true)
 }
 
-func GetEpicUserMap() {
-
+func CreateEpicUserMap(mapping EpicUserMap) error {
+	err := Dbmap.Insert(&mapping)
+	return err
 }
 
-func CreateEpicUserMap() {
-
+func DeleteEpicUserMap(mapping EpicUserMap) error {
+	_, err := Dbmap.Delete(&mapping)
+	return err
 }
 
-func UpdateEpicUserMap() {
-
-}
-
-func DeleteEpicUserMap() {
-
+func EpicOwnedByUser(user_id string, epic_id string) (EpicUserMap, error) {
+	var epicUserMap EpicUserMap
+	err := Dbmap.SelectOne(&epicUserMap, "SELECT * FROM EpicUserMap WHERE userid=? AND epicid=?", user_id, epic_id)
+	return epicUserMap, err
 }

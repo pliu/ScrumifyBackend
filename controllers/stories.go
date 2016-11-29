@@ -8,19 +8,17 @@ import (
 )
 
 func GetStories(c *gin.Context) {
-	id := c.Params.ByName("id")
-	module_id := c.Params.ByName("moduleid")
-	if moduleOwnedByUser(id, module_id) {
-		var stories []models.Story
-		_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE moduleid=?", module_id)
+	user_id := c.Params.ByName("id")
+	epic_id := c.Params.ByName("epicid")
 
-		if err == nil {
-			c.JSON(http.StatusOK, stories)
+	if _, err := models.EpicOwnedByUser(user_id, epic_id); err == nil {
+		if modules, nerr := models.GetStories(epic_id); nerr == nil {
+			c.JSON(http.StatusOK, modules)
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not access database"})
+			c.JSON(http.StatusInternalServerError, err.Error())
 		}
 	} else {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Module not owned by you"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 	}
 }
 

@@ -32,39 +32,21 @@ func removeUnownedEpic(epic_id int64) {
 		if err != nil {
 			utils.PrintErr(err, "Delete unowned epic failed")
 		} else {
-			removeEpicModules(epic_id)
+			removeEpicStories(epic_id)
 		}
 	}
 }
 
 // Async
-func removeEpicModules(epic_id int64) {
-	var modules []models.Module
-	_, err := models.Dbmap.Select(&modules, "SELECT * FROM Module WHERE epicid=?", epic_id)
-	for _, module := range modules {
-		_, err = models.Dbmap.Delete(&module)
-		if err != nil {
-			utils.PrintErr(err, "Delete module failed")
-		} else {
-			removeModuleStories(module.Id)
-			removeModuleDependencies(module.Id)
-		}
-	}
-}
-
-// Async
-func removeModuleStories(module_id int64) {
+func removeEpicStories(epic_id int64) {
 	var stories []models.Story
-	_, err := models.Dbmap.Select(&stories, "SELECT * FROM Story WHERE moduleid=?", module_id)
+	_, err := models.Dbmap.Select(&stories, "SELECT * FROM Module WHERE epicid=?", epic_id)
 	for _, story := range stories {
 		_, err = models.Dbmap.Delete(&story)
 		if err != nil {
-			utils.PrintErr(err, "Delete story failed")
+			utils.PrintErr(err, "Delete module failed")
+		} else {
+
 		}
 	}
-}
-
-// Async
-func removeModuleDependencies(module_id int64) {
-
 }

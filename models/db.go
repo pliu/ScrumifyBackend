@@ -15,10 +15,8 @@ func init() {
 	utils.FatalErr(err, "sql.Open failed")
 	Dbmap = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"}}
 	SetEpicUserMapProperties(Dbmap.AddTable(EpicUserMap{}))
-	SetModuleDependencyMapProperties(Dbmap.AddTable(ModuleDependencyMap{}))
 	SetUserProperties(Dbmap.AddTable(User{}))
 	SetEpicProperties(Dbmap.AddTable(Epic{}))
-	SetModuleProperties(Dbmap.AddTable(Module{}))
 	SetStoryProperties(Dbmap.AddTable(Story{}))
 	err = Dbmap.CreateTablesIfNotExists()
 	utils.FatalErr(err, "Create table failed")
