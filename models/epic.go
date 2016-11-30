@@ -1,8 +1,6 @@
 package models
 
-import (
-	"gopkg.in/gorp.v2"
-)
+import "gopkg.in/gorp.v2"
 
 type Epic struct {
 	Id   int64  `db:"id" json:"id"`

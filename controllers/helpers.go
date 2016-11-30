@@ -7,12 +7,12 @@ import (
 
 func storyOwnedByUser(user_id string, story_id string) bool {
 	var check models.Story
-	err := models.Dbmap.SelectOne(&check, "SELECT * FROM Story WHERE id=?", story_id)
-	if err == nil && models.EpicOwnedByUser(user_id, strconv.FormatInt(check.EpicId, 10)) {
-		return true
-	} else {
-		return false
+	if err := models.Dbmap.SelectOne(&check, "SELECT * FROM Story WHERE id=?", story_id); err == nil {
+		if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(check.EpicId, 10)); err == nil {
+			return true
+		}
 	}
+	return false
 }
 
 func validStory(story models.Story) bool {

@@ -2,7 +2,10 @@ package main
 
 import (
 	"TodoBackend/controllers"
-	_ "TodoBackend/utils"
+	"TodoBackend/models"
+	"TodoBackend/utils"
+	"github.com/gin-gonic/gin"
+	"strconv"
 )
 
 /*
@@ -15,6 +18,12 @@ Things to figure out:
 - synchronization
 */
 func main() {
+	utils.InitializeConfig()
+	models.InitializeDb()
+	if (utils.Conf.ENV == "prod") {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	r := controllers.RegisterRoutes()
-	r.Run(":8080")
+	r.Run(":"+strconv.FormatInt(utils.Conf.PORT, 10))
 }

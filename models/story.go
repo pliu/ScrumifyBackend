@@ -6,7 +6,7 @@ type Story struct {
 	Id          int64  `db:"id" json:"id"`
 	Name        string `db:"name" json:"name"`
 	Description string `db:"description" json:"description"`
-	DueDate 	string  `db:"duedate" json:"duedate"`
+	DueDate 	string `db:"duedate" json:"duedate"`
 	Points      int64  `db:"points" json:"points"`
 	Stage       int64  `db:"stage" json:"stage"`
 	EpicId    	int64  `db:"epicid" json:"epicid"`
@@ -14,7 +14,9 @@ type Story struct {
 
 func SetStoryProperties(table *gorp.TableMap) {
 	table.SetKeys(true, "Id")
-	table.AddIndex("ModuleIdIndex", "Hash", []string{"ModuleId"})
+
+	// InnoDB does not have Hash indices
+	table.AddIndex("StoryEpicIdIndex", "Hash", []string{"EpicId"})
 	table.ColMap("Name").SetNotNull(true)
 	table.ColMap("Stage").SetNotNull(true)
 	table.ColMap("EpicId").SetNotNull(true)

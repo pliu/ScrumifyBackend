@@ -80,7 +80,6 @@ func DeleteUser(c *gin.Context) {
 	if user, err := models.GetUser(id); err == nil {
 		if err = models.DeleteUser(user); err == nil {
 			c.JSON(http.StatusOK, gin.H{"id #" + id: "User deleted"})
-			go removeUserMappings(id)  // Need to come back to this
 		} else {
 			c.JSON(http.StatusInternalServerError, err.Error())
 		}

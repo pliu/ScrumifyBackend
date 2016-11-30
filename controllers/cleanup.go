@@ -8,19 +8,6 @@ import (
 )
 
 // Async
-func removeUserMappings(user_id string) {
-	var mappings []models.EpicUserMap
-	models.Dbmap.Select(&mappings, "SELECT * FROM EpicUserMap WHERE userid=?", user_id)
-	for _, mapping := range mappings {
-		_, err := models.Dbmap.Delete(&mapping)
-		if err != nil {
-			utils.PrintErr(err, "Delete user mapping failed")
-		}
-		removeUnownedEpic(mapping.EpicId)
-	}
-}
-
-// Async
 func removeUnownedEpic(epic_id int64) {
 	var mappings []models.EpicUserMap
 	_, err := models.Dbmap.Select(&mappings, "SELECT * FROM EpicUserMap WHERE epicid=?", epic_id)

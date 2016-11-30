@@ -14,7 +14,6 @@ type User struct {
 
 func SetUserProperties(table *gorp.TableMap) {
 	table.SetKeys(true, "Id")
-	table.AddIndex("EmailIndex", "Hash", []string{"Email"})
 	table.ColMap("Username").SetNotNull(true)
 	table.ColMap("HashedPw").SetNotNull(true)
 	table.ColMap("Email").SetUnique(true).SetNotNull(true)
@@ -50,15 +49,24 @@ func DeleteUser(user User) error {
 		return err
 	}
 
-	if _, err = trans.Delete(&user); err == nil {
-		if _, err = trans.Exec("DELETE FROM EpicUserMap WHERE userid=?", user.Id); err == nil {
-			return trans.Commit()
+	var mappings []EpicUserMap
+	if _, err = trans.Select(mappings, "SELECT * FROM EpicUserMap WHERE userid=?", user.Id); err == nil {
+		if _, err = trans.Delete(&user); err == nil {
+			if _, err = trans.Exec("DELETE FROM EpicUserMap WHERE userid=?", user.Id); err == nil {
+				err = trans.Commit()
+			} else {
+				trans.Rollback()
+				return err
+			}
 		} else {
 			trans.Rollback()
 			return err
 		}
+		/*for _, mapping := range mappings {
+
+		}*/
+		return err
 	} else {
-		trans.Rollback()
 		return err
 	}
 }

@@ -10,11 +10,10 @@ type EpicUserMap struct {
 
 func SetEpicUserMapProperties(table *gorp.TableMap) {
 	table.SetKeys(false, "UserId", "EpicId")
-	table.AddIndex("UserIdIndex", "Hash", []string{"UserId"})
-	table.AddIndex("EpicIdIndex", "Hash", []string{"EpicId"})
-	table.SetUniqueTogether("UserId", "EpicId")
-	table.ColMap("UserId").SetNotNull(true)
-	table.ColMap("EpicId").SetNotNull(true)
+
+	// InnoDB does not have Hash indices
+	table.AddIndex("MapUserIdIndex", "Btree", []string{"UserId"})
+	table.AddIndex("MapEpicIdIndex", "Btree", []string{"EpicId"})
 }
 
 func CreateEpicUserMap(mapping EpicUserMap) error {

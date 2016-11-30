@@ -37,11 +37,11 @@ func RegisterRoutes() *gin.Engine {
 		usersv1.POST("/users/:id/epics/:epicid", AddUserToEpic)
 		// curl -i -X POST -H "Content-Type: application/json" -d "{ \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/users/1/epics/2
 
-		usersv1.GET("/users/:id/modules/:moduleid/stories", GetStories)
-		// curl -i http://localhost:8080/api/v1/users/1/modules/1/stories
+		usersv1.GET("/users/:id/epics/:epicid/stories", GetStories)
+		// curl -i http://localhost:8080/api/v1/users/1/epics/1/stories
 
-		usersv1.POST("/users/:id/modules/:moduleid/stories", PostStory)
-		// curl -i -X POST -H "Content-Type: application/json" -d "{ \"name\": \"Test story\", \"stage\": 1 }" http://localhost:8080/api/v1/users/1/modules/1/stories
+		usersv1.POST("/users/:id/stories", PostStory)
+		// curl -i -X POST -H "Content-Type: application/json" -d "{ \"name\": \"Test story\", \"stage\": 1 }" http://localhost:8080/api/v1/users/1/stories
 
 		//usersv1.PUT("/users/:id/stories/:storyid", UpdateStory)
 
@@ -49,10 +49,12 @@ func RegisterRoutes() *gin.Engine {
 		// curl -i -X DELETE http://localhost:8080/api/v1/users/1/stories/1
 	}
 
-	adminv1 := r.Group("admin/v1", gin.BasicAuth(gin.Accounts{"admin": utils.Conf.ADMIN_PASSWORD}))
-	{
-		adminv1.GET("/users", GetUsers)
-		// curl -i http://localhost:8080/admin/v1/users
+	if (utils.Conf.ADMIN_USERNAME != "" && utils.Conf.ADMIN_PASSWORD != "") {
+		adminv1 := r.Group("admin/v1", gin.BasicAuth(gin.Accounts{utils.Conf.ADMIN_USERNAME: utils.Conf.ADMIN_PASSWORD}))
+		{
+			adminv1.GET("/users", GetUsers)
+			// curl -i http://localhost:8080/admin/v1/users
+		}
 	}
 
 	return r

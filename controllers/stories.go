@@ -25,7 +25,7 @@ func GetStories(c *gin.Context) {
 func PostStory(c *gin.Context) {
 	id := c.Params.ByName("id")
 	module_id := c.Params.ByName("moduleid")
-	if moduleOwnedByUser(id, module_id) {
+	if storyOwnedByUser(id, module_id) {
 		var story models.Story
 		c.Bind(&story)
 
