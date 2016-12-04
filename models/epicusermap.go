@@ -3,7 +3,7 @@ package models
 import (
     "gopkg.in/gorp.v2"
     "database/sql"
-    "TodoBackend/utils"
+    "ScrumifyBackend/utils"
     "strconv"
 )
 

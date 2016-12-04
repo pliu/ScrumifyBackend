@@ -1,7 +1,7 @@
 package controllers
 
 import (
-    "TodoBackend/utils"
+    "ScrumifyBackend/utils"
     "github.com/gin-gonic/gin"
 )
 

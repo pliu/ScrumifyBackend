@@ -1,10 +1,10 @@
 package controllers
 
 import (
-    "TodoBackend/models"
+    "ScrumifyBackend/models"
     "github.com/gin-gonic/gin"
     "net/http"
-    "TodoBackend/utils"
+    "ScrumifyBackend/utils"
 )
 
 func GetUsers(c *gin.Context) {

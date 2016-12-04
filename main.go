@@ -1,9 +1,9 @@
 package main
 
 import (
-    "TodoBackend/controllers"
-    "TodoBackend/models"
-    "TodoBackend/utils"
+    "ScrumifyBackend/controllers"
+    "ScrumifyBackend/models"
+    "ScrumifyBackend/utils"
     "github.com/gin-gonic/gin"
     "strconv"
 )

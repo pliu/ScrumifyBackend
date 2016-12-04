@@ -1,7 +1,7 @@
 package models
 
 import (
-    "TodoBackend/utils"
+    "ScrumifyBackend/utils"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
     "gopkg.in/gorp.v2"

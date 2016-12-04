@@ -1,8 +1,8 @@
 package controllers
 
 import (
-    "TodoBackend/models"
-    "TodoBackend/utils"
+    "ScrumifyBackend/models"
+    "ScrumifyBackend/utils"
     "github.com/gin-gonic/gin"
     "net/http"
     "strconv"

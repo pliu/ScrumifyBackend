@@ -1,11 +1,11 @@
 package controllers
 
 import (
-    "TodoBackend/models"
+    "ScrumifyBackend/models"
     "github.com/gin-gonic/gin"
     "net/http"
     "strconv"
-    "TodoBackend/utils"
+    "ScrumifyBackend/utils"
 )
 
 func GetEpics(c *gin.Context) {
