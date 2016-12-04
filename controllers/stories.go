@@ -5,6 +5,7 @@ import (
     "TodoBackend/utils"
     "github.com/gin-gonic/gin"
     "net/http"
+    "strconv"
 )
 
 func GetStories(c *gin.Context) {
@@ -23,97 +24,75 @@ func GetStories(c *gin.Context) {
 }
 
 func PostStory(c *gin.Context) {
-    id := c.Params.ByName("id")
-    module_id := c.Params.ByName("moduleid")
-    if storyOwnedByUser(id, module_id) {
-        var story models.Story
-        c.Bind(&story)
+    user_id := c.Params.ByName("id")
+    var story models.Story
+    c.Bind(&story)
 
-        if story.IsValid() {
-
-            if insert, _ := models.Dbmap.Exec(`INSERT INTO Story (name, stage, description, points, moduleid) VALUES (?, ?, ?, ?, ?)`, story.Name, story.Stage, story.Description, story.Points, module_id); insert != nil {
-                story_id, err := insert.LastInsertId()
-                if err == nil {
-                    story.Id = story_id
-                    c.JSON(http.StatusCreated, story)
-                } else {
-                    utils.PrintErr(err, "Insert story failed")
-                }
+    if story.IsValid() {
+        if _, err := models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err == nil {
+            if story, err = models.CreateUpdateStory(story, false); err == nil {
+                c.JSON(http.StatusCreated, story)
+            } else {
+                c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
             }
-
+        } else if err == utils.MappingDoesntExist {
+            c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
         } else {
-            c.JSON(http.StatusBadRequest, utils.BadRequestReturn)
+            c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
         }
     } else {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Module not owned by you"})
+        c.JSON(http.StatusBadRequest, utils.BadRequestReturn)
     }
 }
 
-/*
 func UpdateStory(c *gin.Context) {
-	id := c.Params.ByName("id")
-	module_id := c.Params.ByName("moduleid")
+	user_id := c.Params.ByName("id")
+	var newStoryInfo models.Story
+    c.Bind(&newStoryInfo)
 
-	if if CheckModuleOwnedByUser(id, module_id) {
-		var module models.ModuleIn
-		err := models.Dbmap.SelectOne(&module, "SELECT * FROM Module WHERE id=?", module_id)
-		module.Dependencies = getDependencies(module.Id)
-
-		if err == nil {
-			var json models.ModuleIn
-			c.Bind(&json)
-
-			module := models.Epic{
-				Id:      module.Id,
-				Name:    json.Name,
-				DueDate: json.DueDate,
-				Stage:   json.Stage,
-			}
-
-			if epic.Name != "" {
-				_, err = models.Dbmap.Update(&epic)
-
-				if err == nil {
-					c.JSON(200, epic)
-				} else {
-					utils.CheckErr(err, "Updated epic failed")
-				}
-
-			} else {
-				c.JSON(422, utils.BadRequestReturn)
-			}
-
-		} else {
-			c.JSON(404, gin.H{"error": "Module not found"})
-		}
-	} else {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Epic/module not owned by you"})
-	}
-}
-*/
-
-func DeleteStory(c *gin.Context) {
-    id := c.Params.ByName("id")
-    story_id := c.Params.ByName("storyid")
-
-    if storyOwnedByUser(id, story_id) {
-        var story models.Story
-        err := models.Dbmap.SelectOne(&story, "SELECT * FROM Story WHERE id=?", story_id)
-
-        if err == nil {
-
-            _, err := models.Dbmap.Delete(&story)
-
-            if err == nil {
-                c.JSON(http.StatusOK, gin.H{"id #" + story_id: "Deleted story"})
+    if newStoryInfo.IsValid() {
+        if story, err := models.GetStory(strconv.FormatInt(newStoryInfo.Id, 10)); err == nil {
+            if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err == nil {
+                newStoryInfo.EpicId = story.EpicId
+                if newStoryInfo, err = models.CreateUpdateStory(newStoryInfo, true); err == nil {
+                    c.JSON(http.StatusOK, newStoryInfo)
+                } else {
+                    c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
+                }
+            } else if err == utils.MappingDoesntExist {
+                c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
             } else {
-                utils.PrintErr(err, "Delete story failed")
+                c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
             }
-
+        } else if err == utils.StoryDoesntExist {
+            c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
         } else {
-            c.JSON(http.StatusNotFound, gin.H{"error": "Story not found"})
+            c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
         }
     } else {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Story not owned by you"})
+        c.JSON(http.StatusBadRequest, utils.BadRequestReturn)
+    }
+}
+
+func DeleteStory(c *gin.Context) {
+    user_id := c.Params.ByName("id")
+    story_id := c.Params.ByName("storyid")
+
+    if story, err := models.GetStory(story_id); err == nil {
+        if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err == nil {
+            if err = models.DeleteStory(story); err == nil {
+                c.JSON(http.StatusOK, "Story #" + story_id + " deleted")
+            } else {
+                c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
+            }
+        } else if err == utils.MappingDoesntExist {
+            c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
+        } else {
+            c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
+        }
+    } else if err == utils.StoryDoesntExist {
+        c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
+    } else {
+        c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
     }
 }

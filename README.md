@@ -1,5 +1,27 @@
 # README
 
+* Dependencies
+
+        github.com/gin-gonic/gin
+        github.com/go-sql-driver/mysql
+        gopkg.in/gorp.v2 (customized)
+        
+* Customizations
+
+        Added to SqlForCreate in table.go:
+        if col.DefaultStatement != "" {
+        	s.WriteString(" " + col.DefaultStatement)
+        }
+        
+        Added to ColumnMap in column.go:
+        DefaultStatement string
+        
+        Changed bindInsert in table_bindings.go:
+        if !col.Transient -> if !col.Transient && col.DefaultStatement == ""
+        
+        Changed bindUpdate in table_bindings.go:
+        if !col.isAutoIncr && !col.Transient && colFilter(col) -> if !col.isAutoIncr && !col.Transient && colFilter(col) && col.DefaultStatement == ""
+
 * Command-line flags
 
         -config=<path>          default: ./config.json

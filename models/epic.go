@@ -4,16 +4,26 @@ import (
     "gopkg.in/gorp.v2"
     "TodoBackend/utils"
     "strconv"
+    "time"
 )
 
 type Epic struct {
-    Id   int64  `db:"id" json:"id"`
-    Name string `db:"name" json:"name"`
+    Id        int64     `db:"id" json:"id"`
+    Name      string    `db:"name" json:"name"`
+    CreatedAt time.Time `db:"created_at" json:"created_at"`
+    UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 func SetEpicProperties(table *gorp.TableMap) {
     table.SetKeys(true, "Id")
+
+    // InnoDB does not have Hash indices
+    table.AddIndex("EpicCreatedAtIndex", "Btree", []string{"CreatedAt"})
+    table.AddIndex("EpicUpdatedAtIndex", "Btree", []string{"UpdatedAt"})
     table.ColMap("Name").SetNotNull(true)
+    table.ColMap("CreatedAt").SetNotNull(true).SetDefaultStatement("DEFAULT CURRENT_TIMESTAMP")
+    table.ColMap("UpdatedAt").SetNotNull(true).SetDefaultStatement("DEFAULT CURRENT_TIMESTAMP ON UPDATE " +
+        "CURRENT_TIMESTAMP")
 }
 
 func GetEpics(user_id string) ([]Epic, error) {
@@ -34,7 +44,12 @@ func CreateEpic(user_id string, epic Epic) (Epic, error) {
     if err = trans.Insert(&epic); err == nil {
         if _, err = trans.Exec("INSERT INTO EpicUserMap (user_id, epic_id) VALUES (?, ?)", user_id, epic.Id);
             err == nil {
-            return epic, trans.Commit()
+            var check Epic
+            if err = trans.SelectOne(&check, "SELECT * FROM Epic WHERE id=?", epic.Id); err == nil {
+                return check, trans.Commit()
+            } else {
+                return epic, trans.Commit()
+            }
         } else {
             utils.PrintErr(err, "CreateEpic: Failed to insert mapping user_id: " + user_id + " epic_id: " +
                 strconv.FormatInt(epic.Id, 10))
@@ -46,10 +61,25 @@ func CreateEpic(user_id string, epic Epic) (Epic, error) {
     return Epic{}, err
 }
 
-func UpdateEpic(epic Epic) error {
-    _, err := Dbmap.Update(&epic)
-    utils.PrintErr(err, "UpdateEpic: Failed to update epic " + strconv.FormatInt(epic.Id, 10))
-    return err
+func UpdateEpic(epic Epic) (Epic, error) {
+    trans, err := Dbmap.Begin()
+    if err != nil {
+        utils.PrintErr(err, "UpdateEpic: Failed to begin transaction")
+        return Epic{}, err
+    }
+
+    if _, err = trans.Update(&epic); err == nil {
+        var check Epic
+        if err = trans.SelectOne(&check, "SELECT * FROM Epic WHERE id=?", epic.Id); err == nil {
+            return check, trans.Commit()
+        } else {
+            return epic, trans.Commit()
+        }
+    } else {
+        trans.Rollback()
+        utils.PrintErr(err, "UpdateEpic: Failed to update epic " + strconv.FormatInt(epic.Id, 10))
+        return Epic{}, err
+    }
 }
 
 func DeleteEpic(mapping EpicUserMap) error {
@@ -86,7 +116,8 @@ func removeUnownedEpic(epic_id int64) {
             if _, err = trans.Exec("DELETE FROM Story WHERE epic_id=?", epic_id); err == nil {
                 trans.Commit()
             } else {
-                utils.PrintErr(err, "removeUnownedEpic: Failed to delete stories for epic " + strconv.FormatInt(epic_id, 10))
+                utils.PrintErr(err, "removeUnownedEpic: Failed to delete stories for epic " +
+                    strconv.FormatInt(epic_id, 10))
             }
         } else {
             utils.PrintErr(err, "removeUnownedEpic: Failed to delete epic " + strconv.FormatInt(epic_id, 10))

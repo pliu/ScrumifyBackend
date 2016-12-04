@@ -11,8 +11,14 @@ import (
 func GetEpics(c *gin.Context) {
     user_id := c.Params.ByName("id")
 
-    if epics, err := models.GetEpics(user_id); err == nil {
-        c.JSON(http.StatusOK, epics)
+    if _, err := models.GetUser(user_id); err == nil {
+        if epics, err := models.GetEpics(user_id); err == nil {
+            c.JSON(http.StatusOK, epics)
+        } else {
+            c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
+        }
+    } else if err == utils.UserDoesntExist {
+        c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
     } else {
         c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
     }
@@ -24,8 +30,9 @@ func PostEpic(c *gin.Context) {
     c.Bind(&epic)
 
     if epic.IsValid() {
+
+        // TODO: Authentication will make this step redundant
         if _, err := models.GetUser(user_id); err == nil {
-            // TODO: Authentication will make this step redundant
             if epic, err = models.CreateEpic(user_id, epic); err == nil {
                 c.JSON(http.StatusCreated, epic)
             } else {
@@ -43,14 +50,13 @@ func PostEpic(c *gin.Context) {
 
 func UpdateEpic(c *gin.Context) {
     user_id := c.Params.ByName("id")
-    epic_id := c.Params.ByName("epicid")
     var newEpicInfo models.Epic
     c.Bind(&newEpicInfo)
 
     if newEpicInfo.IsValid() {
-        if mapping, err := models.EpicOwnedByUser(user_id, epic_id); err == nil {
+        if mapping, err := models.EpicOwnedByUser(user_id, strconv.FormatInt(newEpicInfo.Id, 10)); err == nil {
             newEpicInfo.Id = mapping.EpicId
-            if err = models.UpdateEpic(newEpicInfo); err == nil {
+            if newEpicInfo, err = models.UpdateEpic(newEpicInfo); err == nil {
                 c.JSON(http.StatusOK, newEpicInfo)
             } else {
                 c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
@@ -71,7 +77,7 @@ func DeleteEpic(c *gin.Context) {
 
     if mapping, err := models.EpicOwnedByUser(user_id, epic_id); err == nil {
         if err = models.DeleteEpic(mapping); err == nil {
-            c.JSON(http.StatusOK, gin.H{"ID #" + epic_id: "Deleted from " + user_id + "'s list"})
+            c.JSON(http.StatusOK, "Deleted epic #" + epic_id + " from user #" + user_id + "'s list")
         } else {
             c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
         }
@@ -90,7 +96,7 @@ func AddUserToEpic(c *gin.Context) {
 
     if _, err := models.EpicOwnedByUser(user_id, epic_id); err == nil {
         if user, err := models.AddEpicUserMap(email.Email, epic_id); err == nil {
-            c.JSON(http.StatusOK, strconv.FormatInt(user.Id, 10) + " associated with " + epic_id)
+            c.JSON(http.StatusOK, "User #" + strconv.FormatInt(user.Id, 10) + " associated with epic #" + epic_id)
         } else if err == utils.UserDoesntExist {
             c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
         } else if err == utils.EmailDoesntExist {

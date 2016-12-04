@@ -6,20 +6,30 @@ import (
     "TodoBackend/utils"
     "database/sql"
     "strconv"
+    "time"
 )
 
 type User struct {
-    Id       int64    `db:"id" json:"id"`
-    Username string    `db:"username" json:"username"`
-    HashedPw string    `db:"hashed_pw" json:"hashed_pw"`
-    Email    string    `db:"email" json:"email"`
+    Id        int64     `db:"id" json:"id"`
+    Username  string    `db:"username" json:"username"`
+    HashedPw  string    `db:"hashed_pw" json:"hashed_pw"`
+    Email     string    `db:"email" json:"email"`
+    CreatedAt time.Time `db:"created_at" json:"created_at"`
+    UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 func SetUserProperties(table *gorp.TableMap) {
     table.SetKeys(true, "Id")
+
+    // InnoDB does not have Hash indices
+    table.AddIndex("UserCreatedAtIndex", "Btree", []string{"CreatedAt"})
+    table.AddIndex("UserUpdatedAtIndex", "Btree", []string{"UpdatedAt"})
     table.ColMap("Username").SetNotNull(true)
     table.ColMap("HashedPw").SetNotNull(true)
     table.ColMap("Email").SetUnique(true).SetNotNull(true)
+    table.ColMap("CreatedAt").SetNotNull(true).SetDefaultStatement("DEFAULT CURRENT_TIMESTAMP")
+    table.ColMap("UpdatedAt").SetNotNull(true).SetDefaultStatement("DEFAULT CURRENT_TIMESTAMP ON UPDATE " +
+        "CURRENT_TIMESTAMP")
 }
 
 func GetUser(user_id string) (User, error) {
@@ -49,23 +59,29 @@ func CreateUpdateUser(user User, update bool) (User, error) {
 
     var check User
     if err = trans.SelectOne(&check, "SELECT * FROM User WHERE email=?", user.Email); (err == nil && check.Email ==
-        user.Email && update) || (err == sql.ErrNoRows && !update) {
+        user.Email && update) || err == sql.ErrNoRows {
         if update {
             _, err = trans.Update(&user)
         } else {
             err = trans.Insert(&user)
         }
         if err == nil {
-            return user, trans.Commit()
+            if err = trans.SelectOne(&check, "SELECT * FROM User WHERE id=?", user.Id); err == nil {
+                return check, trans.Commit()
+            } else {
+                return user, trans.Commit()
+            }
         } else {
             trans.Rollback()
             utils.PrintErr(err, "CreateUpdateUser: Failed to insert/update user " + strconv.FormatInt(user.Id, 10))
             return User{}, err
         }
     } else if err != nil {
+        trans.Rollback()
         utils.PrintErr(err, "CreateUpdateUser: Failed to select email " + user.Email)
         return User{}, err
     } else {
+        trans.Rollback()
         return User{}, utils.EmailExists
     }
 }
@@ -97,6 +113,7 @@ func DeleteUser(user User) error {
         }
         return err
     } else {
+        trans.Rollback()
         utils.PrintErr(err, "DeleteUser: Failed to select user " + strconv.FormatInt(user.Id, 10))
         return err
     }
@@ -108,4 +125,9 @@ func (user User)IsValid() bool {
     } else {
         return false
     }
+}
+
+func (user User)Scrub() User {
+    user.HashedPw = ""
+    return user
 }

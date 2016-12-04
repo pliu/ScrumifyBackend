@@ -40,11 +40,14 @@ func AddEpicUserMap(email string, epic_id string) (User, error) {
                 return User{}, err  // TODO: Differentiate between collision errors and just DB failure
             }
         } else {
+            trans.Rollback()
             return User{}, utils.UserDoesntExist
         }
     } else if err == sql.ErrNoRows {
+        trans.Rollback()
         return User{}, utils.EmailDoesntExist
     } else {
+        trans.Rollback()
         utils.PrintErr(err, "AddEpicUserMap: Failed to select email " + email)
         return User{}, err
     }
