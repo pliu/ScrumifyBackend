@@ -18,8 +18,8 @@ func SetEpicProperties(table *gorp.TableMap) {
     table.SetKeys(true, "Id")
 
     // InnoDB does not have Hash indices
-    table.AddIndex("EpicCreatedAtIndex", "Btree", []string{"CreatedAt"})
-    table.AddIndex("EpicUpdatedAtIndex", "Btree", []string{"UpdatedAt"})
+    table.AddIndex("EpicCreatedAtIndex", "Btree", []string{"created_at"})
+    table.AddIndex("EpicUpdatedAtIndex", "Btree", []string{"updated_at"})
     table.ColMap("Name").SetNotNull(true)
     table.ColMap("CreatedAt").SetNotNull(true).SetDefaultStatement("DEFAULT CURRENT_TIMESTAMP")
     table.ColMap("UpdatedAt").SetNotNull(true).SetDefaultStatement("DEFAULT CURRENT_TIMESTAMP ON UPDATE " +
@@ -93,11 +93,7 @@ func DeleteEpic(mapping EpicUserMap) error {
 }
 
 func (epic Epic)IsValid() bool {
-    if epic.Name != "" {
-        return true
-    } else {
-        return false
-    }
+    return epic.Name != ""
 }
 
 // Called as a goroutine

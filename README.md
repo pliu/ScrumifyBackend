@@ -26,8 +26,8 @@
 * Command-line flags
 
         -config=<path>          default: ./config.json
-        -env=<test/dev/prod>    Overrides ENV in the config file
-        -port=<port>            Overrides PORT in the config file
+        -env=<test/dev/prod>    overrides ENV in the config file
+        -port=<port>            default: 8080; overrides PORT in the config file
         
 * Configuration file fields
 
@@ -48,3 +48,4 @@
 
         Windows:    go build
         Linux:      GOOS=linux GOARCH=amd64 go build
+        

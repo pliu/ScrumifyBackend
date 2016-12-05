@@ -22,8 +22,8 @@ func SetUserProperties(table *gorp.TableMap) {
     table.SetKeys(true, "Id")
 
     // InnoDB does not have Hash indices
-    table.AddIndex("UserCreatedAtIndex", "Btree", []string{"CreatedAt"})
-    table.AddIndex("UserUpdatedAtIndex", "Btree", []string{"UpdatedAt"})
+    table.AddIndex("UserCreatedAtIndex", "Btree", []string{"created_at"})
+    table.AddIndex("UserUpdatedAtIndex", "Btree", []string{"updated_at"})
     table.ColMap("Username").SetNotNull(true)
     table.ColMap("HashedPw").SetNotNull(true)
     table.ColMap("Email").SetUnique(true).SetNotNull(true)
@@ -120,11 +120,7 @@ func DeleteUser(user User) error {
 }
 
 func (user User)IsValid() bool {
-    if user.Username != "" && user.HashedPw != "" && user.Email != "" {
-        return true
-    } else {
-        return false
-    }
+    return user.Username != "" && user.HashedPw != "" && user.Email != ""
 }
 
 func (user User)Scrub() User {

@@ -8,15 +8,6 @@ import (
     "strconv"
 )
 
-/*
-Simplifying assumptions (for now):
-- users only have one device
-- no permissions
-- no push
-
-Things to figure out:
-- synchronization
-*/
 func main() {
     utils.InitializeConfig()
     models.InitializeDb()

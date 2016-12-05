@@ -24,9 +24,9 @@ func SetStoryProperties(table *gorp.TableMap) {
     table.SetKeys(true, "Id")
 
     // InnoDB does not have Hash indices
-    table.AddIndex("StoryEpicIdIndex", "Btree", []string{"EpicId"})
-    table.AddIndex("StoryCreatedAtIndex", "Btree", []string{"CreatedAt"})
-    table.AddIndex("StoryUpdatedAtIndex", "Btree", []string{"UpdatedAt"})
+    table.AddIndex("StoryEpicIdIndex", "Btree", []string{"epic_id"})
+    table.AddIndex("StoryCreatedAtIndex", "Btree", []string{"created_at"})
+    table.AddIndex("StoryUpdatedAtIndex", "Btree", []string{"updated_at"})
     table.ColMap("Name").SetNotNull(true)
     table.ColMap("Stage").SetNotNull(true)
     table.ColMap("EpicId").SetNotNull(true)
@@ -87,9 +87,5 @@ func DeleteStory(story Story) error {
 }
 
 func (story Story)IsValid() bool {
-    if story.Name != "" && (story.Stage == 0 || story.Stage == 1 || story.Stage == 2) && story.EpicId >= 1 {
-        return true
-    } else {
-        return false
-    }
+    return story.Name != "" && (story.Stage == 0 || story.Stage == 1 || story.Stage == 2) && story.EpicId >= 1
 }

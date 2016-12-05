@@ -17,7 +17,7 @@ func SetEpicUserMapProperties(table *gorp.TableMap) {
     table.SetKeys(false, "UserId", "EpicId")
 
     // InnoDB does not have Hash indices
-    table.AddIndex("MapEpicIdIndex", "Btree", []string{"EpicId"})
+    table.AddIndex("MapEpicIdIndex", "Btree", []string{"epic_id"})
 }
 
 func AddEpicUserMap(email string, epic_id string) (User, error) {
