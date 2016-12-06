@@ -94,15 +94,17 @@ func AddUserToEpic(c *gin.Context) {
     var email models.RestEmail
     c.Bind(&email)
 
-    if _, err := models.EpicOwnedByUser(user_id, epic_id); err == nil {
+    if mapping, err := models.EpicOwnedByUser(user_id, epic_id); err == nil {
         if user, err := models.AddEpicUserMap(email.Email, epic_id); err == nil {
             c.JSON(http.StatusOK, "User #" + strconv.FormatInt(user.Id, 10) + " associated with epic #" + epic_id)
-        } else if err == utils.UserDoesntExist {
-            c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
+        } else if err == utils.CantParseEpicId {
+            c.JSON(http.StatusBadRequest, gin.H{"error": epic_id + " is not a valid epic ID"})
         } else if err == utils.EmailDoesntExist {
             c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+        } else if err == utils.MappingExists {
+            c.JSON(http.StatusOK, "User #" + strconv.FormatInt(mapping.UserId, 10) + " already associated with epic #" +
+                epic_id)
         } else {
-            // TODO: Differentiate between collision errors and just DB failure
             c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
         }
     } else if err == utils.MappingDoesntExist {

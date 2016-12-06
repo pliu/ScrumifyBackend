@@ -37,11 +37,11 @@ func AddEpicUserMap(email string, epic_id string) (User, error) {
                 trans.Rollback()
                 utils.PrintErr(err, "AddEpicUserMap: Failed to insert mapping user_id: " +
                     strconv.FormatInt(userToAdd.Id, 10) + " epic_id: " + epic_id)
-                return User{}, err  // TODO: Differentiate between collision errors and just DB failure
+                return User{}, utils.MappingExists  // TODO: Differentiate between collision errors and just DB failure
             }
         } else {
             trans.Rollback()
-            return User{}, utils.UserDoesntExist
+            return User{}, utils.CantParseEpicId
         }
     } else if err == sql.ErrNoRows {
         trans.Rollback()

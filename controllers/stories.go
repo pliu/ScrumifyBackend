@@ -30,6 +30,9 @@ func PostStory(c *gin.Context) {
 
     if story.IsValid() {
         if _, err := models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err == nil {
+            if assigneeError(story, c) {
+                return
+            }
             if story, err = models.CreateUpdateStory(story, false); err == nil {
                 c.JSON(http.StatusCreated, story)
             } else {
@@ -54,6 +57,9 @@ func UpdateStory(c *gin.Context) {
         if story, err := models.GetStory(strconv.FormatInt(newStoryInfo.Id, 10)); err == nil {
             if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err == nil {
                 newStoryInfo.EpicId = story.EpicId
+                if assigneeError(newStoryInfo, c) {
+                    return
+                }
                 if newStoryInfo, err = models.CreateUpdateStory(newStoryInfo, true); err == nil {
                     c.JSON(http.StatusOK, newStoryInfo)
                 } else {
@@ -95,4 +101,19 @@ func DeleteStory(c *gin.Context) {
     } else {
         c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
     }
+}
+
+func assigneeError(story models.Story, c *gin.Context) bool {
+    if story.AssignedTo > 0 {
+        if _, err := models.EpicOwnedByUser(strconv.FormatInt(story.AssignedTo, 10), strconv.FormatInt(
+            story.EpicId, 10)); err == utils.MappingDoesntExist {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "User #" + strconv.FormatInt(story.AssignedTo, 10) +
+                " not in epic #" + strconv.FormatInt(story.EpicId, 10)})
+            return true
+        } else if err != nil {
+            c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
+            return true
+        }
+    }
+    return false
 }

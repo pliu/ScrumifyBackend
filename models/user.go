@@ -14,6 +14,7 @@ type User struct {
     Username  string    `db:"username" json:"username"`
     HashedPw  string    `db:"hashed_pw" json:"hashed_pw"`
     Email     string    `db:"email" json:"email"`
+    Epics     []Epic    `db:"-" json:"epics"`
     CreatedAt time.Time `db:"created_at" json:"created_at"`
     UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }

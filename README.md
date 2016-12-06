@@ -5,6 +5,7 @@
         github.com/gin-gonic/gin
         github.com/go-sql-driver/mysql
         github.com/pjebs/restgate
+        github.com/unrolled/secure
         gopkg.in/gorp.v2 (customized)
         
 * Customizations
@@ -22,6 +23,9 @@
         
         Changed bindUpdate in table_bindings.go:
         if !col.isAutoIncr && !col.Transient && colFilter(col) -> if !col.isAutoIncr && !col.Transient && colFilter(col) && col.DefaultStatement == ""
+        
+        Changed ToSqlType in dialect_mysql.go:
+        case "Time": -> case "Time", "NullTime":
 
 * Command-line flags
 
