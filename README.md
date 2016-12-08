@@ -2,13 +2,13 @@
 
 * Dependencies
 
-        github.com/gin-gonic/gin
+        github.com/gin-gonic/gin (customized; submitted a PR)
         github.com/go-sql-driver/mysql
         github.com/pjebs/restgate
         github.com/unrolled/secure
         gopkg.in/gorp.v2 (customized)
         
-* Customizations
+* Customizations (gorp.v2)
 
         Added to SqlForCreate in table.go:
         if col.DefaultStatement != "" {
@@ -18,6 +18,11 @@
         Added to ColumnMap in column.go:
         DefaultStatement string
         
+        func (c *ColumnMap) SetDefaultStatement(str string) *ColumnMap {
+        	c.DefaultStatement = str
+        	return c
+        }
+        
         Changed bindInsert in table_bindings.go:
         if !col.Transient -> if !col.Transient && col.DefaultStatement == ""
         
@@ -26,6 +31,17 @@
         
         Changed ToSqlType in dialect_mysql.go:
         case "Time": -> case "Time", "NullTime":
+        
+        Added to ToSqlType in dialect_mysql.go:
+        case "Dependencies":
+        	return "blob"
+        	
+* Customizations (gin)
+
+        Added to LoggerWithWriter in logger.go:
+        if c, err := os.Open("CONOUT$"); err == nil && isatty.IsTerminal(c.Fd()) {
+        	isTerm = true
+        }
 
 * Command-line flags
 
@@ -45,8 +61,8 @@
 * Environments
 
         test:   recreates todo_test on every run and displays both database queries and web requests
-        dev:    persists todo_dev between runs and only displays web requests
-        prod:   persists todo_prod between runs and displays neither
+        dev:    persists todo_dev between runs and displays both database queries and web requests
+        prod:   persists todo_prod between runs and only displays web requests
 
 * Build
 

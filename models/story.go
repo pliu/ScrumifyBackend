@@ -6,19 +6,21 @@ import (
     "time"
     "database/sql"
     "strconv"
+    "ScrumifyBackend/scrumifytypes"
 )
 
 type Story struct {
-    Id          int64         `db:"id" json:"id"`
-    Name        string        `db:"name" json:"name"`
-    Description string        `db:"description" json:"description"`
-    DueDate     gorp.NullTime `db:"due_date" json:"due_date"`
-    Points      int64         `db:"points" json:"points"`
-    Stage       int64         `db:"stage" json:"stage"`
-    EpicId      int64         `db:"epic_id" json:"epic_id"`
-    AssignedTo  int64         `db:"assigned_to" json:"assigned_to"`
-    CreatedAt   time.Time     `db:"created_at" json:"created_at"`
-    UpdatedAt   time.Time     `db:"updated_at" json:"updated_at"`
+    Id           int64                      `db:"id" json:"id"`
+    Name         string                     `db:"name" json:"name"`
+    Description  string                     `db:"description" json:"description"`
+    DueDate      gorp.NullTime              `db:"due_date" json:"due_date"`
+    Points       int64                      `db:"points" json:"points"`
+    Stage        int64                      `db:"stage" json:"stage"`
+    EpicId       int64                      `db:"epic_id" json:"epic_id"`
+    AssignedTo   int64                      `db:"assigned_to" json:"assigned_to"`
+    Dependencies scrumifytypes.Dependencies `db:"dependencies" json:"dependencies"`
+    CreatedAt    time.Time                  `db:"created_at" json:"created_at"`
+    UpdatedAt    time.Time                  `db:"updated_at" json:"updated_at"`
 }
 
 func SetStoryProperties(table *gorp.TableMap) {
@@ -89,5 +91,5 @@ func DeleteStory(story Story) error {
 
 func (story Story)IsValid() bool {
     return story.Name != "" && (story.Stage == 0 || story.Stage == 1 || story.Stage == 2) && story.EpicId >= 1 &&
-        story.Points >= 0
+        story.Points >= 0 && story.Dependencies.IsValid()
 }
