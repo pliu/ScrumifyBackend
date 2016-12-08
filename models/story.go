@@ -19,7 +19,7 @@ type Story struct {
     EpicId       int64                      `db:"epic_id" json:"epic_id"`
     AssignedTo   int64                      `db:"assigned_to" json:"assigned_to"`
     Dependencies scrumifytypes.Dependencies `db:"dependencies" json:"dependencies"`
-    CreatedAt    time.Time                  `db:"created_at" json:"created_at"`
+    CreatedAt    time.Time                  `db:"created_at" json:"-"`
     UpdatedAt    time.Time                  `db:"updated_at" json:"updated_at"`
 }
 
@@ -50,13 +50,6 @@ func GetStory(story_id string) (Story, error) {
     }
 }
 
-func GetStories(epic_id string) ([]Story, error) {
-    var stories []Story
-    _, err := Dbmap.Select(&stories, "SELECT * FROM Story WHERE epic_id=?", epic_id)
-    utils.PrintErr(err, "GetStories: Failed to select stories for epic " + epic_id)
-    return stories, err
-}
-
 func CreateUpdateStory(story Story, update bool) (Story, error) {
     trans, err := Dbmap.Begin()
     if err != nil {
@@ -69,17 +62,16 @@ func CreateUpdateStory(story Story, update bool) (Story, error) {
     } else {
         err = trans.Insert(&story)
     }
-    if err == nil {
-        var check Story
-        if err = trans.SelectOne(&check, "SELECT * FROM Story WHERE id=?", story.Id); err == nil {
-            return check, trans.Commit()
-        } else {
-            return story, trans.Commit()
-        }
-    } else {
+    if err != nil {
         trans.Rollback()
         utils.PrintErr(err, "CreateUpdateStory: Failed to insert/update story " + strconv.FormatInt(story.Id, 10))
         return Story{}, err
+    }
+    var check Story
+    if err = trans.SelectOne(&check, "SELECT * FROM Story WHERE id=?", story.Id); err == nil {
+        return check, trans.Commit()
+    } else {
+        return story, trans.Commit()
     }
 }
 

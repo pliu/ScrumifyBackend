@@ -10,7 +10,6 @@ func RegisterRoutes() *gin.Engine {
 
     usersv1 := r.Group("api/v1")
     {
-        // TODO: Return all epics, their member lists, and their stories
         usersv1.GET("/users/:id", GetUser)
         // curl -i http://localhost:8080/api/v1/users/1
 
@@ -23,8 +22,7 @@ func RegisterRoutes() *gin.Engine {
         usersv1.DELETE("/users/:id", DeleteUser)
         // curl -i -X DELETE http://localhost:8080/api/v1/users/1
 
-        // TODO: Get a single epic, its member list, and its stories
-        usersv1.GET("/epics/:id", GetEpics)
+        usersv1.GET("/epics/:id/:epicid", GetEpic)
         // curl -i http://localhost:8080/api/v1/epics/1
 
         usersv1.POST("/epics/:id", PostEpic)
@@ -39,8 +37,7 @@ func RegisterRoutes() *gin.Engine {
         usersv1.POST("/epics/:id/:epicid", AddUserToEpic)
         // curl -i -X POST -H "Content-Type: application/json" -d "{ \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/epics/1/2
 
-        // TODO: Get a single story
-        usersv1.GET("/stories/:id/:epicid", GetStories)
+        usersv1.GET("/stories/:id/:storyid", GetStory)
         // curl -i http://localhost:8080/api/v1/stories/1/1
 
         usersv1.POST("/stories/:id", PostStory)

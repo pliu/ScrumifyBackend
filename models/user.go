@@ -15,7 +15,7 @@ type User struct {
     HashedPw  string    `db:"hashed_pw" json:"hashed_pw"`
     Email     string    `db:"email" json:"email"`
     Epics     []Epic    `db:"-" json:"epics"`
-    CreatedAt time.Time `db:"created_at" json:"created_at"`
+    CreatedAt time.Time `db:"created_at" json:"-"`
     UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
@@ -33,21 +33,55 @@ func SetUserProperties(table *gorp.TableMap) {
         "CURRENT_TIMESTAMP")
 }
 
-func GetUser(user_id string) (User, error) {
-    var user User
-    err := Dbmap.SelectOne(&user, "SELECT * FROM User WHERE id=?", user_id)
-    if err == sql.ErrNoRows {
-        return User{}, utils.UserDoesntExist
-    }
-    utils.PrintErr(err, "GetUser: Failed to select user " + user_id)
-    return user, err
-}
-
 func GetUsers() ([]User, error) {
     var users []User;
     _, err := Dbmap.Select(&users, "SELECT * FROM User")
     utils.PrintErr(err, "GetUsers")
     return users, err
+}
+
+func GetUser(user_id string) (User, error) {
+    trans, err := Dbmap.Begin()
+    if err != nil {
+        utils.PrintErr(err, "GetUser: Failed to begin transaction")
+        return User{}, err
+    }
+
+    var user User
+    if err = trans.SelectOne(&user, "SELECT * FROM User WHERE id=?", user_id); err != nil {
+        if err == sql.ErrNoRows {
+            trans.Rollback()
+            return User{}, utils.UserDoesntExist
+        } else {
+            trans.Rollback()
+            utils.PrintErr(err, "GetUser: Failed to select user " + user_id)
+            return User{}, err
+
+        }
+    }
+    if _, err = trans.Select(&user.Epics, "SELECT * FROM Epic WHERE id IN (SELECT epic_id FROM EpicUserMap WHERE " +
+        "user_id=?)", user_id); err != nil {
+        trans.Rollback()
+        utils.PrintErr(err, "GetUser: Failed to select epics for user " + user_id)
+        return User{}, err
+    }
+    for index := range user.Epics {
+        if _, err = trans.Select(&user.Epics[index].Stories, "SELECT * FROM Story WHERE epic_id=?",
+            user.Epics[index].Id); err != nil {
+            trans.Rollback()
+            utils.PrintErr(err, "GetUser: Failed to select stories for user " + user_id + " and epic " +
+                strconv.FormatInt(user.Epics[index].Id, 10))
+            return User{}, err
+        }
+        if _, err = trans.Select(&user.Epics[index].Members, "SELECT * FROM User WHERE id IN (SELECT user_id FROM " +
+            "EpicUserMap WHERE epic_id=?)", user.Epics[index].Id); err != nil {
+            trans.Rollback()
+            utils.PrintErr(err, "GetUser: Failed to select members for user " + user_id + " and epic " +
+                strconv.FormatInt(user.Epics[index].Id, 10))
+            return User{}, err
+        }
+    }
+    return user, trans.Commit()
 }
 
 func CreateUpdateUser(user User, update bool) (User, error) {
@@ -66,16 +100,15 @@ func CreateUpdateUser(user User, update bool) (User, error) {
         } else {
             err = trans.Insert(&user)
         }
-        if err == nil {
-            if err = trans.SelectOne(&check, "SELECT * FROM User WHERE id=?", user.Id); err == nil {
-                return check, trans.Commit()
-            } else {
-                return user, trans.Commit()
-            }
-        } else {
+        if err != nil {
             trans.Rollback()
             utils.PrintErr(err, "CreateUpdateUser: Failed to insert/update user " + strconv.FormatInt(user.Id, 10))
             return User{}, err
+        }
+        if err = trans.SelectOne(&check, "SELECT * FROM User WHERE id=?", user.Id); err == nil {
+            return check, trans.Commit()
+        } else {
+            return user, trans.Commit()
         }
     } else if err != nil {
         trans.Rollback()
@@ -87,7 +120,7 @@ func CreateUpdateUser(user User, update bool) (User, error) {
     }
 }
 
-func DeleteUser(user User) error {
+func DeleteUser(user_id string) error {
     trans, err := Dbmap.Begin()
     if err != nil {
         utils.PrintErr(err, "DeleteUser: Failed to begin transaction")
@@ -95,27 +128,25 @@ func DeleteUser(user User) error {
     }
 
     var mappings []EpicUserMap
-    if _, err = trans.Select(&mappings, "SELECT * FROM EpicUserMap WHERE user_id=?", user.Id); err == nil {
-        if _, err = trans.Delete(&user); err == nil {
-            if _, err = trans.Exec("DELETE FROM EpicUserMap WHERE user_id=?", user.Id); err == nil {
-                err = trans.Commit()
-            } else {
-                trans.Rollback()
-                utils.PrintErr(err, "DeleteUser: Failed to delete mappings for user " + strconv.FormatInt(user.Id, 10))
-                return err
-            }
-        } else {
-            trans.Rollback()
-            utils.PrintErr(err, "DeleteUser: Failed to delete user " + strconv.FormatInt(user.Id, 10))
-            return err
-        }
+    if _, err = trans.Select(&mappings, "SELECT * FROM EpicUserMap WHERE user_id=?", user_id); err != nil {
+        trans.Rollback()
+        utils.PrintErr(err, "DeleteUser: Failed to select user " + user_id)
+        return err
+    }
+    if _, err = trans.Exec("DELETE FROM User WHERE id=?", user_id); err != nil {
+        trans.Rollback()
+        utils.PrintErr(err, "DeleteUser: Failed to delete user " + user_id)
+        return err
+    }
+    if _, err = trans.Exec("DELETE FROM EpicUserMap WHERE user_id=?", user_id); err == nil {
+        err = trans.Commit()
         for _, mapping := range mappings {
             go removeUnownedEpic(mapping.EpicId)
         }
         return err
     } else {
         trans.Rollback()
-        utils.PrintErr(err, "DeleteUser: Failed to select user " + strconv.FormatInt(user.Id, 10))
+        utils.PrintErr(err, "DeleteUser: Failed to delete mappings for user " + user_id)
         return err
     }
 }
