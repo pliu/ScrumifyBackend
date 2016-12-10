@@ -1,11 +1,11 @@
 package main
 
 import (
-    "ScrumifyBackend/controllers"
     "ScrumifyBackend/models"
     "ScrumifyBackend/utils"
     "github.com/gin-gonic/gin"
     "strconv"
+    "ScrumifyBackend/server"
 )
 
 func main() {
@@ -15,6 +15,6 @@ func main() {
         gin.SetMode(gin.ReleaseMode)
     }
 
-    r := controllers.RegisterRoutes()
+    r := server.RegisterRoutes()
     r.Run(":" + strconv.FormatInt(utils.Conf.PORT, 10))
 }
