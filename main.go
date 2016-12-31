@@ -16,5 +16,5 @@ func main() {
     }
 
     r := server.RegisterRoutes()
-    r.Run(":" + strconv.FormatInt(utils.Conf.PORT, 10))
+    r.RunTLS(":" + strconv.FormatInt(utils.Conf.PORT, 10), utils.Conf.CERT_PATH, utils.Conf.KEY_PATH)
 }

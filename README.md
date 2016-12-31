@@ -46,11 +46,15 @@
 * Command-line flags
 
         -config=<path>          default: ./config.json
+        -cert                   overrides CERT_PATH in the config file
+        -key                    overrides KEY_PATH in the config file
         -env=<test/dev/prod>    overrides ENV in the config file
-        -port=<port>            default: 8080; overrides PORT in the config file
+        -port=<port>            overrides PORT in the config file
         
 * Configuration file fields
 
+        CERT_PATH           default: ./cert.pem
+        KEY_PATH            default: ./key.pem
         ENV                 default: dev
         PORT                default: 8080 (between 1024 and 49151, inclusive)
         DB_USERNAME         required

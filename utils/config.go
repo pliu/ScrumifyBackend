@@ -8,6 +8,8 @@ import (
 )
 
 type Config struct {
+    CERT_PATH      string `json:"CERT_PATH"`
+    KEY_PATH       string `json:"KEY_PATH"`
     ENV            string `json:"ENV"`
     PORT           int64  `json:"PORT"`
     DB_USERNAME    string `json:"DB_USERNAME"`
@@ -20,7 +22,11 @@ var Conf Config
 
 func InitializeConfig() {
     var config_path string
-    flag.StringVar(&config_path, "config", "./config.json", "Path to the config file")
+    flag.StringVar(&config_path, "config", "./config.json", "Path to the config file; defaults to ./config.json")
+    var cert_path string
+    flag.StringVar(&cert_path, "cert", "", "Path to the cert file; overrides config file and defaults to ./cert.pem")
+    var key_path string
+    flag.StringVar(&key_path, "key", "", "Path to the key file; overrides config file and defaults to ./key.pem")
     var env string
     flag.StringVar(&env, "env", "", "test, dev, or prod; overrides config file and defaults to dev")
     var port int64
@@ -28,6 +34,18 @@ func InitializeConfig() {
     flag.Parse()
 
     readConfig(config_path)
+    if cert_path != "" {
+        Conf.CERT_PATH = cert_path
+    }
+    if Conf.CERT_PATH == "" {
+        Conf.CERT_PATH = "./cert.pem"
+    }
+    if key_path != "" {
+        Conf.KEY_PATH = key_path
+    }
+    if Conf.KEY_PATH == "" {
+        Conf.KEY_PATH = "./key.pem"
+    }
     if env == "test" {
         Conf.ENV = "test"
     } else if env == "prod" {
@@ -35,12 +53,11 @@ func InitializeConfig() {
     } else if env == "dev" || Conf.ENV == "" {
         Conf.ENV = "dev"
     }
+    if port != 0 {
+        Conf.PORT = port
+    }
     if Conf.PORT == 0 {
-        if port == 0 {
-            Conf.PORT = 8080
-        } else {
-            Conf.PORT = port
-        }
+        Conf.PORT = 8080
     }
 
     validateConfig()
