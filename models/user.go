@@ -156,6 +156,15 @@ func (user User)IsValid() bool {
 }
 
 func (user User)Scrub() User {
+    for _, epic := range user.Epics {
+        for i, member := range epic.Members {
+            epic.Members[i] = member.scrubPassword()
+        }
+    }
+    return user.scrubPassword()
+}
+
+func (user User)scrubPassword() User {
     user.HashedPw = ""
     return user
 }
