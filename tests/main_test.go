@@ -24,6 +24,7 @@ func init() {
 
 func TestSuiteTest(t *testing.T) {
 	suite.Run(t, new(UsersTest))
+	suite.Run(t, new(EpicsTest))
 }
 
 func getRequestResponse(requestType string, endpoint string, body string) *httptest.ResponseRecorder {
