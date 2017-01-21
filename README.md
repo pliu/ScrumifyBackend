@@ -4,7 +4,7 @@
 
         github.com/gin-gonic/gin (customized; submitted a PR)
         github.com/go-sql-driver/mysql
-        github.com/pjebs/restgate
+        github.com/stretchr/testify
         gopkg.in/gorp.v2 (customized)
         
 * Customizations (gorp.v2)
