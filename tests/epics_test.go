@@ -81,9 +81,9 @@ func (suite *EpicsTest) TestUpdateInvalidEpic() {
 	resp = getRequestResponse("GET", "/api/v1/epics/1/1", "")
 	require.Equal(suite.T(), http.StatusOK, resp.Code)
 
-	// User #1 tries to change unspecified epic's name to an invalid name
-	resp = getRequestResponse("PUT", "/api/v1/epics/1", `{}`)
-	assert.Equal(suite.T(), http.StatusBadRequest, resp.Code)
+	// User #1 tries to change unspecified epic
+	resp = getRequestResponse("PUT", "/api/v1/epics/1", `{"name": "Test epic"}`)
+	assert.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 
 	// User #1 tries to change epic #1's name to an invalid name
 	resp = getRequestResponse("PUT", "/api/v1/epics/1", `{"id": 1}`)
@@ -117,7 +117,7 @@ func (suite *EpicsTest) TestAccessUnownedEpic() {
 
 	// User #2 tries to get epic #1
 	resp = getRequestResponse("GET", "/api/v1/epics/2/1", "")
-	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
+	assert.Equal(http.StatusUnauthorized, resp.Code)
 
 	// User #2 adds user #2 to epic #1
 	resp = getRequestResponse("POST", "/api/v1/epics/2/1", `{"email": "dur2@dur.com"}`)
@@ -129,7 +129,7 @@ func (suite *EpicsTest) TestAccessUnownedEpic() {
 		"name": "Test epic2"}`)
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 
-	// User #1 tries to delete epic #1
+	// User #2 tries to delete epic #1
 	resp = getRequestResponse("DELETE", "/api/v1/epics/2/1", "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 }
@@ -160,6 +160,10 @@ func (suite *EpicsTest) TestAddUserToEpic() {
 	resp = getRequestResponse("PUT", "/api/v1/epics/2", `{
 		"id": 1,
 		"name": "Test epic2"}`)
+	assert.Equal(http.StatusOK, resp.Code)
+
+	// User #2 deletes epic #1
+	resp = getRequestResponse("DELETE", "/api/v1/epics/2/1", "")
 	assert.Equal(http.StatusOK, resp.Code)
 }
 
