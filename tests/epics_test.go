@@ -15,7 +15,7 @@ type EpicsTest struct {
 }
 
 func (suite *EpicsTest) SetupTest() {
-	models.Dbmap.TruncateTables()
+	models.InitializeDb()
 	createTwoUsers()
 
 	// Gets user #1

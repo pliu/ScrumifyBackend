@@ -14,6 +14,55 @@
         	s.WriteString(" " + col.DefaultStatement)
         }
         
+        if len(t.foreignKeys) > 0 {
+        	for _, foreignKey := range t.foreignKeys {
+        		t := bytes.Buffer{}
+        		s.WriteString(", foreign key (")
+       			t.WriteString("(")
+        		for i, mapping := range foreignKey.mappings {
+        			if i > 0 {
+        				s.WriteString(", ")
+       					t.WriteString(", ")
+        			}
+        			s.WriteString(mapping.FieldName)
+        			t.WriteString(mapping.ReferenceFieldName)
+        		}
+       			s.WriteString(") references ")
+        		t.WriteString(")")
+        		s.WriteString(foreignKey.referenceTable)
+        		s.WriteString(t.String())
+       			if foreignKey.statements != "" {
+        			s.WriteString(" ")
+        			s.WriteString(foreignKey.statements)
+        		}
+        	}
+       	}
+       	
+       	Added new method to table.go:
+       	func (t *TableMap) SetForeignKeys(referenceTable string, statements string, mappings ...FieldNameMapping) *TableMap {
+        	var foreignKey ForeignKey
+        	foreignKey.referenceTable = referenceTable
+        	foreignKey.statements = statements
+        	for _, mapping := range mappings {
+        		foreignKey.mappings = append(foreignKey.mappings, mapping)
+        	}
+        	t.foreignKeys = append(t.foreignKeys, foreignKey)
+        
+        	return t
+        }
+        
+        Added new file, foreign_key_structs.go:
+        type FieldNameMapping struct {
+        	FieldName string
+        	ReferenceFieldName string
+        }
+        
+        type ForeignKey struct {
+        	mappings []FieldNameMapping
+        	referenceTable string
+        	statements string
+        }
+        
         Added to ColumnMap in column.go:
         DefaultStatement string
         
@@ -63,7 +112,7 @@
         
 * Environments
 
-        test:   recreates todo_test on every run and displays both database queries and web requests
+        test:   recreates todo_test on every run and only displays web requests
         dev:    persists todo_dev between runs and displays both database queries and web requests
         prod:   persists todo_prod between runs and only displays web requests
 

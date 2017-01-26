@@ -36,7 +36,7 @@ func InitializeDb() {
     utils.FatalErr(err, "Connect to database failed")
     Dbmap = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"}}
 
-    if utils.Conf.ENV == "test" || utils.Conf.ENV == "dev" {
+    if utils.Conf.ENV == "dev" {
         Dbmap.TraceOn("[gorp]", log.New(os.Stdout, "", log.Ltime))
     }
 

@@ -18,7 +18,6 @@ func init() {
 	utils.InitializeConfig()
 	utils.Conf.ENV = "test"
 	models.InitializeDb()
-	models.Dbmap.TraceOff()
 	r = server.RegisterRoutes()
 }
 

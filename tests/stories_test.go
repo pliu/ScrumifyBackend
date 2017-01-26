@@ -24,7 +24,7 @@ type StoriesTest struct {
 }
 
 func (suite *StoriesTest) SetupTest() {
-	models.Dbmap.TruncateTables()
+	models.InitializeDb()
 	createTwoUsers()
 
 	// Gets user #1

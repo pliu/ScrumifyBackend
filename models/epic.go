@@ -133,13 +133,8 @@ func removeUnownedEpic(epic_id int64) {
         if _, err = trans.Exec("DELETE FROM Epic WHERE id=?", epic_id); err != nil {
             trans.Rollback()
             utils.PrintErr(err, "removeUnownedEpic: Failed to delete epic " + strconv.FormatInt(epic_id, 10))
-        }
-        if _, err = trans.Exec("DELETE FROM Story WHERE epic_id=?", epic_id); err == nil {
-            trans.Commit()
         } else {
-            trans.Rollback()
-            utils.PrintErr(err, "removeUnownedEpic: Failed to delete stories for epic " +
-                strconv.FormatInt(epic_id, 10))
+            trans.Commit()
         }
     } else {
         trans.Rollback()
