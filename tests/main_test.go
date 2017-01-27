@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"ScrumifyBackend/utils"
 	"ScrumifyBackend/server"
-	"ScrumifyBackend/models"
 	"github.com/gin-gonic/gin"
 	"net/http/httptest"
 	"bytes"
@@ -17,7 +16,6 @@ var r *gin.Engine
 func init() {
 	utils.InitializeConfig()
 	utils.Conf.ENV = "test"
-	models.InitializeDb()
 	r = server.RegisterRoutes()
 }
 

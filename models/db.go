@@ -40,9 +40,9 @@ func InitializeDb() {
         Dbmap.TraceOn("[gorp]", log.New(os.Stdout, "", log.Ltime))
     }
 
-    SetEpicUserMapProperties(Dbmap.AddTable(EpicUserMap{}))
     SetUserProperties(Dbmap.AddTable(User{}))
     SetEpicProperties(Dbmap.AddTable(Epic{}))
+    SetEpicUserMapProperties(Dbmap.AddTable(EpicUserMap{}))
     SetStoryProperties(Dbmap.AddTable(Story{}))
 
     err = Dbmap.CreateTablesIfNotExists()

@@ -15,6 +15,7 @@ type EpicUserMap struct {
 
 func SetEpicUserMapProperties(table *gorp.TableMap) {
     table.SetKeys(false, "UserId", "EpicId")
+    table.SetForeignKeys("user", "ON DELETE CASCADE", gorp.FieldNameMapping{"user_id", "id"})
 
     // InnoDB does not have Hash indices
     table.AddIndex("MapEpicIdIndex", "Btree", []string{"epic_id"})

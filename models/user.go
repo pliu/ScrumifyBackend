@@ -138,17 +138,11 @@ func DeleteUser(user_id string) error {
         utils.PrintErr(err, "DeleteUser: Failed to delete user " + user_id)
         return err
     }
-    if _, err = trans.Exec("DELETE FROM EpicUserMap WHERE user_id=?", user_id); err == nil {
-        err = trans.Commit()
-        for _, mapping := range mappings {
-            go removeUnownedEpic(mapping.EpicId)
-        }
-        return err
-    } else {
-        trans.Rollback()
-        utils.PrintErr(err, "DeleteUser: Failed to delete mappings for user " + user_id)
-        return err
+    err = trans.Commit()
+    for _, mapping := range mappings {
+        go removeUnownedEpic(mapping.EpicId)
     }
+    return err
 }
 
 func (user User)IsValid() bool {

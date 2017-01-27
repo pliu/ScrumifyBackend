@@ -22,8 +22,7 @@ type UsersTest struct {
 }
 
 func (suite *UsersTest) SetupTest() {
-	models.Dbmap.TruncateTables()
-}
+	models.InitializeDb()}
 
 func (suite *UsersTest) TestUserDoesntExist() {
 	assert := assert.New(suite.T())
@@ -45,7 +44,7 @@ func (suite *UsersTest) TestUserDoesntExist() {
 	// User #1 tries to create epic
 	// TODO: Currently passes, but should fail after authentication is implemented
 	resp = getRequestResponse("POST", "/api/v1/epics/1", `{"name": "Test epic"}`)
-	assert.Equal(http.StatusCreated, resp.Code)
+	assert.Equal(http.StatusInternalServerError, resp.Code)
 }
 
 func (suite *UsersTest) TestCreateInvalidUser() {
