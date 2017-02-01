@@ -15,10 +15,10 @@ func RegisterRoutes() *gin.Engine {
         // curl -i http://localhost:8080/api/v1/users/1
 
         usersv1.POST("/users", controllers.PostUser)
-        // curl -i -X POST -H "Content-Type: application/json" -d "{ \"username\": \"Test\", \"hashedpw\": \"abc\", \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/users
+        // curl -i -X POST -H "Content-Type: application/json" -d "{ \"username\": \"Test\", \"hashed_pw\": \"abc\", \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/users
 
         usersv1.PUT("/users/:id", controllers.UpdateUser)
-        // curl -i -X PUT -H "Content-Type: application/json" -d "{ \"username\": \"Updated\", \"hashedpw\": \"cba\", \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/users/1
+        // curl -i -X PUT -H "Content-Type: application/json" -d "{ \"username\": \"Updated\", \"hashed_pw\": \"cba\", \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/users/1
 
         usersv1.DELETE("/users/:id", controllers.DeleteUser)
         // curl -i -X DELETE http://localhost:8080/api/v1/users/1

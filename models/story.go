@@ -25,7 +25,7 @@ type Story struct {
 
 func SetStoryProperties(table *gorp.TableMap) {
     table.SetKeys(true, "Id")
-    table.SetForeignKeys("epic", "ON DELETE CASCADE", gorp.FieldNameMapping{"epic_id", "id"})
+    table.SetForeignKeys("Epic", "ON DELETE CASCADE", gorp.FieldNameMapping{"epic_id", "id"})
 
     // InnoDB does not have Hash indices
     table.AddIndex("StoryEpicIdIndex", "Btree", []string{"epic_id"})
