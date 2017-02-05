@@ -19,7 +19,7 @@ func init() {
 	r = server.RegisterRoutes()
 }
 
-func TestSuiteTest(t *testing.T) {
+func TestSuiteMainTest(t *testing.T) {
 	suite.Run(t, new(UsersTest))
 	suite.Run(t, new(EpicsTest))
 	suite.Run(t, new(StoriesTest))
