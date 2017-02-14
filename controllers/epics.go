@@ -21,6 +21,9 @@ func GetEpic(c *gin.Context) {
         return
     }
     if epic, err := models.GetEpic(epic_id); err == nil {
+	    for i := range epic.Members {
+		    epic.Members[i].HashedPw = ""
+	    }
         c.JSON(http.StatusOK, epic)
     } else if err == utils.EpicDoesntExist {
         c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
@@ -54,9 +57,8 @@ func UpdateEpic(c *gin.Context) {
         c.JSON(http.StatusBadRequest, utils.BadRequestReturn)
         return
     }
-    var mapping models.EpicUserMap
     var err error
-    if mapping, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(newEpicInfo.Id, 10)); err != nil {
+    if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(newEpicInfo.Id, 10)); err != nil {
         if err == utils.MappingDoesntExist {
             c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
         } else {
@@ -64,7 +66,6 @@ func UpdateEpic(c *gin.Context) {
         }
         return
     }
-    newEpicInfo.Id = mapping.EpicId
     if newEpicInfo, err = models.UpdateEpic(newEpicInfo); err == nil {
         c.JSON(http.StatusOK, newEpicInfo)
     } else {

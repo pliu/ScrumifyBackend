@@ -13,7 +13,7 @@ func GetStory(c *gin.Context) {
     story_id := c.Params.ByName("storyid")
 
     story, story_err := models.GetStory(story_id)
-    if _, err := models.EpicOwnedByUser(user_id, strconv.FormatInt(story.Id, 10)); err != nil {
+    if _, err := models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err != nil {
         if err == utils.MappingDoesntExist {
             c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
         } else {
@@ -132,7 +132,7 @@ func assigneeError(story models.Story, c *gin.Context) bool {
             story.EpicId, 10)); err == utils.MappingDoesntExist {
             c.JSON(http.StatusBadRequest, gin.H{"error": "User #" + strconv.FormatInt(story.AssignedTo, 10) +
                 " not in epic #" + strconv.FormatInt(story.EpicId, 10)})
-            return true
+	        return true
         } else if err != nil {
             c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
             return true

@@ -5,7 +5,7 @@ import (
     "ScrumifyBackend/utils"
     "github.com/gin-gonic/gin"
     "strconv"
-    "ScrumifyBackend/server"
+    "ScrumifyBackend/controllers"
 )
 
 func main() {
@@ -15,6 +15,6 @@ func main() {
         gin.SetMode(gin.ReleaseMode)
     }
 
-    r := server.RegisterRoutes()
+    r := controllers.RegisterRoutes()
     r.RunTLS(":" + strconv.FormatInt(utils.Conf.PORT, 10), utils.Conf.CERT_PATH, utils.Conf.KEY_PATH)
 }

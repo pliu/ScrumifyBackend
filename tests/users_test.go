@@ -5,7 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"ScrumifyBackend/models"
+	"strconv"
 )
 
 var validUser string = `{
@@ -22,9 +22,11 @@ type UsersTest struct {
 }
 
 func (suite *UsersTest) SetupTest() {
-	models.InitializeDb()}
+	cleanDb()
+}
 
 func (suite *UsersTest) TestUserDoesntExist() {
+	trace()
 	assert := assert.New(suite.T())
 
 	// Tries to get user #1
@@ -48,6 +50,7 @@ func (suite *UsersTest) TestUserDoesntExist() {
 }
 
 func (suite *UsersTest) TestCreateInvalidUser() {
+	trace()
 	assert := assert.New(suite.T())
 
 	// Tries to create an invalid user
@@ -70,39 +73,39 @@ func (suite *UsersTest) TestCreateInvalidUser() {
 }
 
 func (suite *UsersTest) TestCreateDeleteUser() {
+	trace()
 	assert := assert.New(suite.T())
 
-	// Tries to get user #1
-	resp := getRequestResponse("GET", "/api/v1/users/1", "")
-	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
-
-	// Creates user #1
-	resp = getRequestResponse("POST", "/api/v1/users", validUser)
+	// Creates user
+	resp := getRequestResponse("POST", "/api/v1/users", validUser)
 	assert.Equal(http.StatusCreated, resp.Code)
+	user := unmarshalToUser(resp)
+	id := strconv.FormatInt(user.Id, 10)
 
-	// Gets user #1
-	resp = getRequestResponse("GET", "/api/v1/users/1", "")
+	// Gets user
+	resp = getRequestResponse("GET", "/api/v1/users/" + id, "")
 	require.Equal(suite.T(), http.StatusOK, resp.Code)
 
-	// Delete user #1
-	resp = getRequestResponse("DELETE", "/api/v1/users/1", "")
+	// Delete user
+	resp = getRequestResponse("DELETE", "/api/v1/users/" + id, "")
 	assert.Equal(http.StatusOK, resp.Code)
 
-	// Tries to get user #1
-	resp = getRequestResponse("GET", "/api/v1/users/1", "")
+	// Tries to get user
+	resp = getRequestResponse("GET", "/api/v1/users/" + id, "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 }
 
 func (suite *UsersTest) TestCreateUpdateUserDuplicateEmail() {
-	createTwoUsers()
+	trace()
 
-	// Gets user #1
-	resp := getRequestResponse("GET", "/api/v1/users/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
+	// Creates user #1
+	resp := getRequestResponse("POST", "/api/v1/users", validUser)
+	require.Equal(suite.T(), http.StatusCreated, resp.Code)
 
-	// Gets user #2
-	resp = getRequestResponse("GET", "/api/v1/users/2", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
+	// Creates user #2
+	resp = getRequestResponse("POST", "/api/v1/users", validUser2)
+	require.Equal(suite.T(), http.StatusCreated, resp.Code)
+	user2 := unmarshalToUser(resp)
 
 	// Tries to create a user with the same e-mail
 	resp = getRequestResponse("POST", "/api/v1/users", validUser)
@@ -111,60 +114,53 @@ func (suite *UsersTest) TestCreateUpdateUserDuplicateEmail() {
 	// Tries to change user #2's e-mail to that of user #1
 	// TODO: CreateUpdateUser in user.go does not currently distinguish between duplicate e-mails or internal server
 	// error
-	resp = getRequestResponse("PUT", "/api/v1/users/2", validUser)
+	resp = getRequestResponse("PUT", "/api/v1/users/" + strconv.FormatInt(user2.Id, 10), validUser)
 	assert.Equal(suite.T(), http.StatusInternalServerError, resp.Code)
 }
 
 func (suite *UsersTest) TestUpdateInvalidUser() {
+	trace()
 	assert := assert.New(suite.T())
 
-	// Creates user #1
+	// Creates user
 	resp := getRequestResponse("POST", "/api/v1/users", validUser)
+	require.Equal(suite.T(), http.StatusCreated, resp.Code)
+	user := unmarshalToUser(resp)
+	id := strconv.FormatInt(user.Id, 10)
 
-	// Gets user #1
-	resp = getRequestResponse("GET", "/api/v1/users/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// Tries to change user #1's username to an invalid username
-	resp = getRequestResponse("PUT", "/api/v1/users/1", `{
+	// Tries to change user's username to an invalid username
+	resp = getRequestResponse("PUT", "/api/v1/users/" + id, `{
   		"hashed_pw": "ableh",
   		"email": "dur@dur.com"}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
-	// Tries to change user #1's hashed pw to an invalid hashed pw
-	resp = getRequestResponse("PUT", "/api/v1/users/1", `{
+	// Tries to change user's hashed pw to an invalid hashed pw
+	resp = getRequestResponse("PUT", "/api/v1/users/" + id, `{
   		"username": "test2",
   		"email": "dur@dur.com"}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
-	// Tries to change user #1's e-mail to an invalid e-mail
-	resp = getRequestResponse("PUT", "/api/v1/users/1", `{
+	// Tries to change user's e-mail to an invalid e-mail
+	resp = getRequestResponse("PUT", "/api/v1/users/" + id, `{
   		"username": "test2",
   		"hashed_pw": "ableh"}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 }
 
 func (suite *UsersTest) TestUpdateUser() {
-	// Creates user #1
+	trace()
+
+	// Creates user
 	resp := getRequestResponse("POST", "/api/v1/users", validUser)
+	require.Equal(suite.T(), http.StatusCreated, resp.Code)
+	user := unmarshalToUser(resp)
+	id := strconv.FormatInt(user.Id, 10)
 
-	// Gets user #1
-	resp = getRequestResponse("GET", "/api/v1/users/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// Changes user #1's info
-	resp = getRequestResponse("PUT", "/api/v1/users/1", validUser2)
+	// Changes user's info
+	resp = getRequestResponse("PUT", "/api/v1/users/" + id, validUser2)
 	assert.Equal(suite.T(), http.StatusOK, resp.Code)
 
-	// Changes user #1's e-mail to the same e-mail
-	resp = getRequestResponse("PUT", "/api/v1/users/1", validUser)
+	// Changes user's e-mail to the same e-mail
+	resp = getRequestResponse("PUT", "/api/v1/users/" + id, validUser)
 	assert.Equal(suite.T(), http.StatusOK, resp.Code)
-}
-
-func createTwoUsers () {
-	// Creates user #1
-	getRequestResponse("POST", "/api/v1/users", validUser)
-
-	// Creates user #2
-	getRequestResponse("POST", "/api/v1/users", validUser2)
 }

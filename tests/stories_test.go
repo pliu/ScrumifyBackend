@@ -2,314 +2,325 @@ package tests
 
 import (
 	"github.com/stretchr/testify/suite"
-	"ScrumifyBackend/models"
 	"github.com/stretchr/testify/require"
 	"net/http"
-	"database/sql"
 	"github.com/stretchr/testify/assert"
+	"strconv"
+	"ScrumifyBackend/models"
+	"database/sql"
+	"net/http/httptest"
 	"time"
 )
 
-var validStory string = `{
-  		"name": "Test story",
-  		"stage": 1,
-  		"points": 2,
-  		"assigned_to": 1,
-  		"epic_id": 1,
-  		"dependencies": {
-    		"Valid": true}}`
-
 type StoriesTest struct {
 	suite.Suite
+	user_id1 string
+	user_id2 string
+	epic_id1 string
+	epic_id2 string
 }
 
 func (suite *StoriesTest) SetupTest() {
-	models.InitializeDb()
-	createTwoUsers()
-
-	// Gets user #1
-	resp := getRequestResponse("GET", "/api/v1/users/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// Gets user #2
-	resp = getRequestResponse("GET", "/api/v1/users/2", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// User #1 creates epic #1
-	getRequestResponse("POST", "/api/v1/epics/1", `{"name": "Test epic"}`)
-
-	// User #2 creates epic #2
-	getRequestResponse("POST", "/api/v1/epics/2", `{"name": "Test epic2"}`)
-
-	// User #1 gets epic #1
-	resp = getRequestResponse("GET", "/api/v1/epics/1/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// User #1 tries to get epic #2
-	resp = getRequestResponse("GET", "/api/v1/epics/1/2", "")
-	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
-
-	// User #2 gets epic #2
-	resp = getRequestResponse("GET", "/api/v1/epics/2/2", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// User #2 tries to get epic #1
-	resp = getRequestResponse("GET", "/api/v1/epics/2/1", "")
-	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
+	cleanDb()
+	suite.createTwoEpicsForTwoUsers()
 }
 
 func (suite *StoriesTest) TestStoryDoesntExist() {
-	// User #1 tries to get story #1
-	resp := getRequestResponse("GET", "/api/v1/stories/1/1", "")
+	trace()
+
+	// User #1 tries to get story
+	resp := getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/1", "")
 	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 
-	// User #1 tries to update story #1
-	resp = getRequestResponse("PUT", "/api/v1/stories/1", validStory)
+	// User #1 tries to update story
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id1, `{
+		"id": 1,
+  		"name": "Test story",
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 
-	// User #1 tries to delete story #1
-	resp = getRequestResponse("DELETE", "/api/v1/stories/1/1", "")
+	// User #1 tries to delete story
+	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id1 + "/1", "")
 	assert.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 }
 
 func (suite *StoriesTest) TestNonExistentUserCreateStory() {
+	trace()
+	i, _ := strconv.ParseInt(suite.epic_id2, 10, 64)
+
 	// User #3 tries to create a story under epic #1
-	resp := getRequestResponse("POST", "/api/v1/stories/3", `{
+	resp := getRequestResponse("POST", "/api/v1/stories/" + strconv.FormatInt(i + 1, 10), `{
   		"name": "Test story",
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 }
 
 func (suite *StoriesTest) TestCreateInvalidStory() {
+	trace()
 	assert := assert.New(suite.T())
 
 	// User #1 tries to create an invalid story under epic #1
-	resp := getRequestResponse("POST", "/api/v1/stories/1", `{"epic_id": 1}`)
+	resp := getRequestResponse("POST", "/api/v1/stories/" + suite.user_id1, `{"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
 	// User #1 tries to create an invalid story under epic #1
-	resp = getRequestResponse("POST", "/api/v1/stories/1", `{
+	resp = getRequestResponse("POST", "/api/v1/stories/" + suite.user_id1, `{
   		"name": "Test story",
   		"stage": 3,
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
 	// User #1 tries to create an invalid story under an unspecified epic
-	resp = getRequestResponse("POST", "/api/v1/stories/1", `{"name": "Test story"}`)
+	resp = getRequestResponse("POST", "/api/v1/stories/" + suite.user_id1, `{"name": "Test story"}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
 	// User #1 tries to create an invalid story under epic #1
-	resp = getRequestResponse("POST", "/api/v1/stories/1", `{
+	resp = getRequestResponse("POST", "/api/v1/stories/" + suite.user_id1, `{
   		"name": "Test story",
   		"points": -1,
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
 	// User #1 tries to create an invalid story under epic #1
-	resp = getRequestResponse("POST", "/api/v1/stories/1", `{
+	resp = getRequestResponse("POST", "/api/v1/stories/" + suite.user_id1, `{
   		"name": "Test story",
   		"assigned_to": 2,
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 }
 
 func (suite *StoriesTest) TestCreateDeleteStory() {
+	trace()
 	assert := assert.New(suite.T())
 
-	// User #1 tries to get story #1
-	resp := getRequestResponse("GET", "/api/v1/stories/1/1", "")
-	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
+	// User #1 creates story under epic #1
+	resp := createValidStory(suite)
+	story := unmarshalToStory(resp)
+	id := strconv.FormatInt(story.Id, 10)
 
-	// User #1 creates story #1 under epic #1
-	resp = getRequestResponse("POST", "/api/v1/stories/1", validStory)
-	assert.Equal(http.StatusCreated, resp.Code)
-
-	// User #1 gets story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/1/1", "")
+	// User #1 gets story
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + id, "")
 	require.Equal(suite.T(), http.StatusOK, resp.Code)
 
-	// User #1 deletes story #1
-	resp = getRequestResponse("DELETE", "/api/v1/stories/1/1", "")
+	// User #1 deletes story
+	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id1 + "/" + id, "")
 	assert.Equal(http.StatusOK, resp.Code)
 
-	// User #1 tries to get story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/1/1", "")
+	// User #1 tries to get story
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + id, "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 }
 
 func (suite *StoriesTest) TestUpdateInvalidStory() {
+	trace()
 	assert := assert.New(suite.T())
 
-	// User #1 creates story #1 under epic #1
-	resp := getRequestResponse("POST", "/api/v1/stories/1", validStory)
+	// User #1 creates story under epic #1
+	resp := createValidStory(suite)
+	story := unmarshalToStory(resp)
+	id := strconv.FormatInt(story.Id, 10)
 
-	// User #1 gets story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/1/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// User #1 tries to change story #1's name to an invalid name
-	resp = getRequestResponse("PUT", "/api/v1/stories/1", `{
-		"id": 1,
-		"epic_id": 1}`)
+	// User #1 tries to change story's name to an invalid name
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id1, `{
+		"id": ` + id + `,
+		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
-	// User #1 tries to change story #1's stage to an invalid stage
-	resp = getRequestResponse("PUT", "/api/v1/stories/1", `{
-		"id": 1,
+	// User #1 tries to change story's stage to an invalid stage
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id1, `{
+		"id": ` + id + `,
   		"name": "Test story",
   		"stage": 3,
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
-	// User #1 tries to change story #1's epic_id
+	// User #1 tries to change story's epic_id
 	// TODO: Updating a story shouldn't be able to change the epic it is associated with
-	resp = getRequestResponse("PUT", "/api/v1/stories/1", `{
-		"id": 1,
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id1, `{
+		"id": ` + id + `,
 		"name": "Test story"}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
-	// User #1 tries to change story #1's points to an invalid value
-	resp = getRequestResponse("PUT", "/api/v1/stories/1", `{
-		"id": 1,
+	// User #1 tries to change story's points to an invalid value
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id1, `{
+		"id": ` + id + `,
   		"name": "Test story",
   		"points": -1,
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1+ `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
-	// User #1 tries to change story #1's assignee to one not in epic #1
-	resp = getRequestResponse("PUT", "/api/v1/stories/1", `{
-		"id": 1,
+	// User #1 tries to change story's assignee to one not in epic #1
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id1, `{
+		"id": ` + id + `,
   		"name": "Test story",
-  		"assigned_to": 2,
-  		"epic_id": 1}`)
+  		"assigned_to": ` + suite.user_id2 + `,
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
 	// User #1 tries to change an unspecified story
-	resp = getRequestResponse("PUT", "/api/v1/stories/1", `{
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id1, `{
   		"name": "Test story",
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 }
 
 func (suite *StoriesTest) TestUpdateStory() {
-	// User #1 creates story #1 under epic #1
-	resp := getRequestResponse("POST", "/api/v1/stories/1", validStory)
+	trace()
 
-	// User #1 gets story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/1/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
+	// User #1 creates story under epic #1
+	resp := createValidStory(suite)
+	story := unmarshalToStory(resp)
 
-	// User #1 changes story #1
-	resp = getRequestResponse("PUT", "/api/v1/stories/1", `{
-		"id": 1,
+	// User #1 changes story
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id1, `{
+		"id": ` + strconv.FormatInt(story.Id, 10) + `,
   		"name": "Test story",
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(suite.T(), http.StatusOK, resp.Code)
 }
 
 func (suite *StoriesTest) TestAccessUnownedStory() {
+	trace()
 	assert := assert.New(suite.T())
 
-	// User #1 creates story #1 under epic #1
-	resp := getRequestResponse("POST", "/api/v1/stories/1", validStory)
+	// User #1 creates story under epic #1
+	resp := createValidStory(suite)
+	story := unmarshalToStory(resp)
+	id := strconv.FormatInt(story.Id, 10)
 
-	// User #1 gets story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/1/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// User #2 tries to get story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/2/1", "")
+	// User #2 tries to get story
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id2 + "/" + id, "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 
-	// User #2 tries to change story #1
-	resp = getRequestResponse("PUT", "/api/v1/stories/2", `{
-		"id": 1,
+	// User #2 tries to change story
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id2, `{
+		"id": ` + id + `,
   		"name": "Test story",
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 
-	// User #2 tries to delete story #1
-	resp = getRequestResponse("DELETE", "/api/v1/stories/2/1", "")
+	// User #2 tries to delete story
+	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id2 + "/" + id, "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 
 	// User #1 tries to create a story under epic #2
-	resp = getRequestResponse("POST", "/api/v1/stories/1", `{
+	resp = getRequestResponse("POST", "/api/v1/stories/" + suite.user_id1, `{
   		"name": "Test story",
-  		"epic_id": 2}`)
+  		"epic_id": ` + suite.epic_id2 + `}`)
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 }
 
 func (suite *StoriesTest) TestMultiownedEpic() {
+	trace()
 	assert := assert.New(suite.T())
 
-	// User #1 creates story #1 under epic #1
-	resp := getRequestResponse("POST", "/api/v1/stories/1", validStory)
-
-	// User #1 gets story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/1/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
+	// User #1 creates story under epic #1
+	resp := createValidStory(suite)
+	story := unmarshalToStory(resp)
+	id := strconv.FormatInt(story.Id, 10)
 
 	// User #1 adds user #2 to epic #1
-	resp = getRequestResponse("POST", "/api/v1/epics/1/1", `{"email": "dur2@dur.com"}`)
+	resp = getRequestResponse("POST", "/api/v1/epics/" + suite.user_id1 + "/" + suite.epic_id1,
+		`{"email": "dur2@dur.com"}`)
 
 	// User #2 gets epic #1
-	resp = getRequestResponse("GET", "/api/v1/epics/2/1", "")
+	resp = getRequestResponse("GET", "/api/v1/epics/" + suite.user_id2 + "/" + suite.epic_id1, "")
 	require.Equal(suite.T(), http.StatusOK, resp.Code)
 
-	// User #2 gets story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/2/1", "")
+	// User #2 gets story
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id2 + "/" + id, "")
 	assert.Equal(http.StatusOK, resp.Code)
 
-	// User #2 changes story #1
-	resp = getRequestResponse("PUT", "/api/v1/stories/2", `{
-		"id": 1,
+	// User #2 changes story
+	resp = getRequestResponse("PUT", "/api/v1/stories/" + suite.user_id2, `{
+		"id": ` + id + `,
   		"name": "Test story",
-  		"epic_id": 1}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusOK, resp.Code)
 
-	// User #2 deletes story #1
-	resp = getRequestResponse("DELETE", "/api/v1/stories/2/1", "")
+	// User #2 deletes story
+	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id2 + "/" + id, "")
 	assert.Equal(http.StatusOK, resp.Code)
 
-	// User #2 adds user #1 to epic #2
-	resp = getRequestResponse("POST", "/api/v1/epics/2/2", `{"email": "dur@dur.com"}`)
-
-	// User #1 gets epic #2
-	resp = getRequestResponse("GET", "/api/v1/epics/1/2", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
-
-	// User #1 tries to create a story under epic #2
-	resp = getRequestResponse("POST", "/api/v1/stories/1", `{
-  		"name": "Test story",
-  		"epic_id": 2}`)
-	assert.Equal(http.StatusCreated, resp.Code)
+	// User #1 tries to get story
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + id, "")
+	assert.Equal(http.StatusUnauthorized, resp.Code)
 }
 
 func (suite *StoriesTest) TestCascadeDeletesStory() {
-	// User #1 creates story #1 under epic #1
-	resp := getRequestResponse("POST", "/api/v1/stories/1", validStory)
+	trace()
 
-	// User #1 gets story #1
-	resp = getRequestResponse("GET", "/api/v1/stories/1/1", "")
-	require.Equal(suite.T(), http.StatusOK, resp.Code)
+	// User #1 creates story under epic #1
+	resp := createValidStory(suite)
+	story := unmarshalToStory(resp)
 
-	assert.True(suite.T(), storyExists(1))
+	assert.True(suite.T(), storyExists(story.Id))
 
 	// User #1 deletes epic #1
-	resp = getRequestResponse("DELETE", "/api/v1/epics/1/1", "")
+	resp = getRequestResponse("DELETE", "/api/v1/epics/" + suite.user_id1 + "/" + suite.epic_id1, "")
 
 	// User #1 tries to get epic #1
-	resp = getRequestResponse("GET", "/api/v1/epics/1/1", "")
+	resp = getRequestResponse("GET", "/api/v1/epics/" + suite.user_id1 + "/" + suite.epic_id1, "")
 	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 
-	time.Sleep(100 * time.Millisecond)
-	assert.False(suite.T(), storyExists(1))
+	time.Sleep(10 * time.Millisecond)
+	assert.False(suite.T(), storyExists(story.Id))
 }
 
-func storyExists(story_id int) bool {
+func storyExists(story_id int64) bool {
 	var story models.Story
 	if err := models.Dbmap.SelectOne(&story, "SELECT * FROM Story WHERE id=?", story_id); err == sql.ErrNoRows {
 		return false
 	}
 	return true
+}
+
+func (suite *StoriesTest)createTwoEpicsForTwoUsers() {
+	require := require.New(suite.T())
+
+	// Creates user #1
+	resp := getRequestResponse("POST", "/api/v1/users", validUser)
+	require.Equal(http.StatusCreated, resp.Code)
+	user := unmarshalToUser(resp)
+	suite.user_id1 = strconv.FormatInt(user.Id, 10)
+
+	// Creates user #2
+	resp = getRequestResponse("POST", "/api/v1/users", validUser2)
+	require.Equal(http.StatusCreated, resp.Code)
+	user = unmarshalToUser(resp)
+	suite.user_id2 = strconv.FormatInt(user.Id, 10)
+
+	// User #1 creates epic #1
+	resp = getRequestResponse("POST", "/api/v1/epics/" + suite.user_id1, `{"name": "Test epic"}`)
+	require.Equal(http.StatusCreated, resp.Code)
+	epic := unmarshalToEpic(resp)
+	suite.epic_id1 = strconv.FormatInt(epic.Id, 10)
+
+	// User #2 creates epic #2
+	resp = getRequestResponse("POST", "/api/v1/epics/" + suite.user_id2, `{"name": "Test epic2"}`)
+	require.Equal(http.StatusCreated, resp.Code)
+	epic = unmarshalToEpic(resp)
+	suite.epic_id2 = strconv.FormatInt(epic.Id, 10)
+
+	// User #1 tries to get epic #2
+	resp = getRequestResponse("GET", "/api/v1/epics/" + suite.user_id1 + "/" + suite.epic_id2, "")
+	require.Equal(http.StatusUnauthorized, resp.Code)
+
+	// User #2 tries to get epic #1
+	resp = getRequestResponse("GET", "/api/v1/epics/" + suite.user_id2 + "/" + suite.epic_id1, "")
+	require.Equal(http.StatusUnauthorized, resp.Code)
+}
+
+func createValidStory(suite *StoriesTest) *httptest.ResponseRecorder {
+	// User #1 creates story under epic #1
+	resp := getRequestResponse("POST", "/api/v1/stories/" + suite.user_id1, `{
+  		"name": "Test story",
+  		"stage": 1,
+  		"points": 2,
+  		"assigned_to": ` + suite.user_id1 + `,
+  		"epic_id": ` + suite.epic_id1 + `,
+  		"dependencies": {
+    		"Valid": true}}`)
+	require.Equal(suite.T(), http.StatusCreated, resp.Code)
+	return resp
 }
