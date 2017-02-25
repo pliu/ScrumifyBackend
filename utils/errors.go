@@ -1,8 +1,8 @@
 package utils
 
 import (
-    "errors"
-    "github.com/gin-gonic/gin"
+	"errors"
+	"github.com/gin-gonic/gin"
 )
 
 var EmailExists error = errors.New("Email already exists")

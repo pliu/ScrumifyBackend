@@ -146,7 +146,7 @@ func (suite *StoriesTest) TestUpdateInvalidStory() {
 		"id": ` + id + `,
   		"name": "Test story",
   		"points": -1,
-  		"epic_id": ` + suite.epic_id1+ `}`)
+  		"epic_id": ` + suite.epic_id1 + `}`)
 	assert.Equal(http.StatusBadRequest, resp.Code)
 
 	// User #1 tries to change story's assignee to one not in epic #1

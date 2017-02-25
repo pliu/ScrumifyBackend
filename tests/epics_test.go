@@ -84,7 +84,7 @@ func (suite *EpicsTest) TestUpdateInvalidEpic() {
 	assert.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 
 	// User #1 tries to change epic's name to an invalid name
-	resp = getRequestResponse("PUT", "/api/v1/epics/"  + suite.user_id1, `{"id": ` +
+	resp = getRequestResponse("PUT", "/api/v1/epics/" + suite.user_id1, `{"id": ` +
 			strconv.FormatInt(epic.Id, 10) + `}`)
 	assert.Equal(suite.T(), http.StatusBadRequest, resp.Code)
 }
@@ -220,7 +220,7 @@ func epicExists(epic_id int64) bool {
 	return true
 }
 
-func (suite *EpicsTest)createTwoUsers () {
+func (suite *EpicsTest)createTwoUsers() {
 	// Creates user #1
 	resp := getRequestResponse("POST", "/api/v1/users", validUser)
 	require.Equal(suite.T(), http.StatusCreated, resp.Code)

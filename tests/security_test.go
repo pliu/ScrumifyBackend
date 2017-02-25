@@ -1,11 +1,11 @@
 package tests
 
 import (
-    "github.com/stretchr/testify/suite"
-    "ScrumifyBackend/models"
-    "github.com/stretchr/testify/require"
-    "github.com/stretchr/testify/assert"
-    "net/http"
+	"github.com/stretchr/testify/suite"
+	"ScrumifyBackend/models"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
+	"net/http"
 	"strconv"
 )
 
@@ -19,52 +19,41 @@ var maliciousUser2 string = `{
 		"email": "; DROP TABLE Story"}`
 
 type SecurityTest struct {
-    suite.Suite
+	suite.Suite
 }
 
 func (suite *SecurityTest) SetupTest() {
 	cleanDb()
 }
 
-func (suite *SecurityTest) TestMissingTableDetectable() {
-	trace()
-
-    require.True(suite.T(), storyTableExists())
-
-    models.Dbmap.Exec("DROP TABLE Story")
-    assert.False(suite.T(), storyTableExists())
-
-	models.InitializeDb()
-}
-
 func (suite *SecurityTest) TestSQLInjection() {
 	trace()
 
-    assert := assert.New(suite.T())
-    require := require.New(suite.T())
+	assert := assert.New(suite.T())
+	require := require.New(suite.T())
 
-    require.True(storyTableExists())
+	require.True(storyTableExists())
 
-    resp := getRequestResponse("POST", "/api/v1/users", maliciousUser)
-    require.Equal(http.StatusCreated, resp.Code)
+	resp := getRequestResponse("POST", "/api/v1/users", maliciousUser)
+	require.Equal(http.StatusCreated, resp.Code)
 	user := unmarshalToUser(resp)
-    assert.True(storyTableExists())
+	assert.True(storyTableExists())
 
-    resp = getRequestResponse("PUT", "/api/v1/users/%3BDROP%20TABLE%20Story", maliciousUser2)
-    assert.Equal(http.StatusBadRequest, resp.Code)
-    assert.True(storyTableExists())
+	resp = getRequestResponse("PUT", "/api/v1/users/%3BDROP%20TABLE%20Story", maliciousUser2)
+	assert.Equal(http.StatusBadRequest, resp.Code)
+	assert.True(storyTableExists())
 
-    resp = getRequestResponse("PUT", "/api/v1/users/" + strconv.FormatInt(user.Id, 10), maliciousUser2)
-    require.Equal(http.StatusOK, resp.Code)
-    assert.True(storyTableExists())
+	resp = getRequestResponse("PUT", "/api/v1/users/" + strconv.FormatInt(user.Id, 10), maliciousUser2)
+	require.Equal(http.StatusOK, resp.Code)
+	assert.True(storyTableExists())
 
-    resp = getRequestResponse("GET", "/api/v1/users/%3BDROP%20TABLE%20Story", "")
-    assert.Equal(http.StatusUnauthorized, resp.Code)
-    assert.True(storyTableExists())
+	resp = getRequestResponse("GET", "/api/v1/users/%3BDROP%20TABLE%20Story", "")
+	assert.Equal(http.StatusUnauthorized, resp.Code)
+	assert.True(storyTableExists())
 
-    resp = getRequestResponse("DELETE", "/api/v1/users/%3BDROP%20TABLE%20Story", "")
-    assert.Equal(http.StatusOK, resp.Code)
-    assert.True(storyTableExists())
+	resp = getRequestResponse("DELETE", "/api/v1/users/%3BDROP%20TABLE%20Story", "")
+	assert.Equal(http.StatusOK, resp.Code)
+	assert.True(storyTableExists())
 }
 
 func (suite *SecurityTest) TestDoesntLeakHashedPw() {
