@@ -17,3 +17,5 @@ var CantParseEpicId error = errors.New("Can't parse epic ID")
 var InternalErrorReturn gin.H = gin.H{"error": "Internal error"}
 var UnauthorizedReturn gin.H = gin.H{"error": "Not authorized"}
 var BadRequestReturn gin.H = gin.H{"error": "Required fields are empty"}
+
+var SqlDuplicate string = "1062"

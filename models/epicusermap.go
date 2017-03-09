@@ -48,9 +48,12 @@ func AddEpicUserMap(email string, epic_id string) (User, error) {
 		return userToAdd, trans.Commit()
 	} else {
 		trans.Rollback()
+		if utils.ParseSQLError(err) == utils.SqlDuplicate {
+			return User{}, utils.MappingExists
+		}
 		utils.PrintErr(err, "AddEpicUserMap: Failed to insert mapping for user_id " +
 				strconv.FormatInt(userToAdd.Id, 10) + " and epic_id " + epic_id)
-		return User{}, utils.MappingExists  // TODO: Differentiate between collision errors and just DB failure
+		return User{}, err
 	}
 }
 

@@ -112,10 +112,8 @@ func (suite *UsersTest) TestCreateUpdateUserDuplicateEmail() {
 	assert.Equal(suite.T(), http.StatusConflict, resp.Code)
 
 	// Tries to change user #2's e-mail to that of user #1
-	// TODO: CreateUpdateUser in user.go does not currently distinguish between duplicate e-mails or internal server
-	// error
 	resp = getRequestResponse("PUT", "/api/v1/users/" + strconv.FormatInt(user2.Id, 10), validUser)
-	assert.Equal(suite.T(), http.StatusInternalServerError, resp.Code)
+	assert.Equal(suite.T(), http.StatusConflict, resp.Code)
 }
 
 func (suite *UsersTest) TestUpdateInvalidUser() {

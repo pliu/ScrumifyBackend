@@ -134,30 +134,23 @@ func CreateUpdateUser(user User, update bool) (User, error) {
 	user.Email = strings.ToLower(user.Email)
 
 	var check User
-	if err = trans.SelectOne(&check, "SELECT * FROM User WHERE email=?", user.Email); (err == nil && check.Email ==
-			user.Email && update) || err == sql.ErrNoRows {
-		if update {
-			_, err = trans.Update(&user)
-		} else {
-			err = trans.Insert(&user)
-		}
-		if err != nil {
-			trans.Rollback()
-			utils.PrintErr(err, "CreateUpdateUser: Failed to insert/update user " + strconv.FormatInt(user.Id, 10))
-			return User{}, err
-		}
-		if err = trans.SelectOne(&check, "SELECT * FROM User WHERE id=?", user.Id); err == nil {
-			return check, trans.Commit()
-		} else {
-			return user, trans.Commit()
-		}
-	} else if err != nil {
-		trans.Rollback()
-		utils.PrintErr(err, "CreateUpdateUser: Failed to select email " + user.Email)
-		return User{}, err
+	if update {
+		_, err = trans.Update(&user)
 	} else {
+		err = trans.Insert(&user)
+	}
+	if err != nil {
 		trans.Rollback()
-		return User{}, utils.EmailExists
+		if utils.ParseSQLError(err) == utils.SqlDuplicate {
+			return User{}, utils.EmailExists
+		}
+		utils.PrintErr(err, "CreateUpdateUser: Failed to insert/update user " + strconv.FormatInt(user.Id, 10))
+		return User{}, err
+	}
+	if err = trans.SelectOne(&check, "SELECT * FROM User WHERE id=?", user.Id); err == nil {
+		return check, trans.Commit()
+	} else {
+		return user, trans.Commit()
 	}
 }
 
