@@ -24,24 +24,23 @@ type Story struct {
 }
 
 func SetStoryProperties(table *gorp.TableMap) {
-	table.SetKeys(true, "Id")
+	table.SetKeys(false, "EpicId", "Id")
 	table.SetForeignKeys("Epic", "ON DELETE CASCADE", gorp.FieldNameMapping{"epic_id", "id"})
 
 	// InnoDB does not have Hash indices
-	table.AddIndex("StoryEpicIdIndex", "Btree", []string{"epic_id"})
+	table.AddIndex("StoryIdIndex", "Btree", []string{"id"})
 	table.AddIndex("StoryCreatedAtIndex", "Btree", []string{"created_at"})
 	table.AddIndex("StoryUpdatedAtIndex", "Btree", []string{"updated_at"})
 	table.ColMap("Name").SetNotNull(true)
 	table.ColMap("Stage").SetNotNull(true)
-	table.ColMap("EpicId").SetNotNull(true)
 	table.ColMap("CreatedAt").SetNotNull(true).SetDefaultStatement("DEFAULT CURRENT_TIMESTAMP")
 	table.ColMap("UpdatedAt").SetNotNull(true).SetDefaultStatement("DEFAULT CURRENT_TIMESTAMP ON UPDATE " +
 			"CURRENT_TIMESTAMP")
 }
 
-func GetStory(story_id string) (Story, error) {
+func GetStory(epic_id string, story_id string) (Story, error) {
 	var story Story
-	if err := Dbmap.SelectOne(&story, "SELECT * FROM Story WHERE id=?", story_id); err == nil {
+	if err := Dbmap.SelectOne(&story, "SELECT * FROM Story WHERE epic_id=? AND id=?", epic_id, story_id); err == nil {
 		return story, err
 	} else if err == sql.ErrNoRows {
 		return Story{}, utils.StoryDoesntExist
@@ -59,8 +58,29 @@ func CreateUpdateStory(story Story, update bool) (Story, error) {
 	}
 
 	if update {
-		_, err = trans.Update(&story)
+		var check Story
+		if check_err := trans.SelectOne(&check, "SELECT * FROM Story WHERE epic_id=? AND id=?", story.EpicId, story.Id);
+				check_err == nil {
+			_, err = trans.Update(&story)
+		} else if check_err == sql.ErrNoRows {
+			trans.Rollback()
+			return Story{}, utils.StoryDoesntExist
+		} else {
+			trans.Rollback()
+			utils.PrintErr(err, "CreateUpdateStory: Failed to select story " + strconv.FormatInt(story.Id, 10))
+			return Story{}, check_err
+		}
+
 	} else {
+		nextId, id_err := trans.SelectInt("SELECT IFNULL(MAX(id),0) + 1 FROM Story WHERE epic_id=? FOR UPDATE",
+			story.EpicId)
+		if id_err != nil {
+			trans.Rollback()
+			utils.PrintErr(err, "CreateUpdateStory: Failed to get the next ID for epic " +
+					strconv.FormatInt(story.EpicId, 10))
+			return Story{}, id_err
+		}
+		story.Id = nextId
 		err = trans.Insert(&story)
 	}
 	if err != nil {
@@ -68,17 +88,12 @@ func CreateUpdateStory(story Story, update bool) (Story, error) {
 		utils.PrintErr(err, "CreateUpdateStory: Failed to insert/update story " + strconv.FormatInt(story.Id, 10))
 		return Story{}, err
 	}
-	var check Story
-	if err = trans.SelectOne(&check, "SELECT * FROM Story WHERE id=?", story.Id); err == nil {
-		return check, trans.Commit()
-	} else {
-		return story, trans.Commit()
-	}
+	return story, trans.Commit()
 }
 
-func DeleteStory(story Story) error {
-	_, err := Dbmap.Delete(&story)
-	utils.PrintErr(err, "DeleteStory: Failed to delete story " + strconv.FormatInt(story.Id, 10))
+func DeleteStory(epic_id string, story_id string) error {
+	_, err := Dbmap.Exec("DELETE FROM Story WHERE epic_id=? AND id=?", epic_id, story_id)
+	utils.PrintErr(err, "DeleteStory: Failed to delete story " + story_id)
 	return err
 }
 

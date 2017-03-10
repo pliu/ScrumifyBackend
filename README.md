@@ -66,6 +66,7 @@
         Added to ColumnMap in column.go:
         DefaultStatement string
         
+        Added new method to column.go:
         func (c *ColumnMap) SetDefaultStatement(str string) *ColumnMap {
         	c.DefaultStatement = str
         	return c

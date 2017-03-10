@@ -49,5 +49,4 @@ func InitializeDb() {
 	utils.FatalErr(err, "Create table failed")
 
 	err = Dbmap.CreateIndex()
-	utils.FatalErr(err, "Create index failed")
 }

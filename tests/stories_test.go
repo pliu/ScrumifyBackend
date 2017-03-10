@@ -29,7 +29,7 @@ func (suite *StoriesTest) TestStoryDoesntExist() {
 	trace()
 
 	// User #1 tries to get story
-	resp := getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/1", "")
+	resp := getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + suite.epic_id1 + "/1", "")
 	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 
 	// User #1 tries to update story
@@ -40,8 +40,8 @@ func (suite *StoriesTest) TestStoryDoesntExist() {
 	assert.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 
 	// User #1 tries to delete story
-	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id1 + "/1", "")
-	assert.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
+	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id1 + "/" + suite.epic_id1 + "/1", "")
+	assert.Equal(suite.T(), http.StatusOK, resp.Code)
 }
 
 func (suite *StoriesTest) TestNonExistentUserCreateStory() {
@@ -99,15 +99,15 @@ func (suite *StoriesTest) TestCreateDeleteStory() {
 	id := strconv.FormatInt(story.Id, 10)
 
 	// User #1 gets story
-	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + id, "")
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + suite.epic_id1 + "/" + id, "")
 	require.Equal(suite.T(), http.StatusOK, resp.Code)
 
 	// User #1 deletes story
-	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id1 + "/" + id, "")
+	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id1 + "/" + suite.epic_id1 + "/" + id, "")
 	assert.Equal(http.StatusOK, resp.Code)
 
 	// User #1 tries to get story
-	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + id, "")
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + suite.epic_id1 + "/" + id, "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 }
 
@@ -189,7 +189,7 @@ func (suite *StoriesTest) TestAccessUnownedStory() {
 	id := strconv.FormatInt(story.Id, 10)
 
 	// User #2 tries to get story
-	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id2 + "/" + id, "")
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id2 + "/" + suite.epic_id1 + "/" + id, "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 
 	// User #2 tries to change story
@@ -200,7 +200,7 @@ func (suite *StoriesTest) TestAccessUnownedStory() {
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 
 	// User #2 tries to delete story
-	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id2 + "/" + id, "")
+	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id2 + "/" + suite.epic_id1 + "/" + id, "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 
 	// User #1 tries to create a story under epic #2
@@ -228,7 +228,7 @@ func (suite *StoriesTest) TestMultiownedEpic() {
 	require.Equal(suite.T(), http.StatusOK, resp.Code)
 
 	// User #2 gets story
-	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id2 + "/" + id, "")
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id2 + "/" + suite.epic_id1 + "/" + id, "")
 	assert.Equal(http.StatusOK, resp.Code)
 
 	// User #2 changes story
@@ -239,11 +239,11 @@ func (suite *StoriesTest) TestMultiownedEpic() {
 	assert.Equal(http.StatusOK, resp.Code)
 
 	// User #2 deletes story
-	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id2 + "/" + id, "")
+	resp = getRequestResponse("DELETE", "/api/v1/stories/" + suite.user_id2 + "/" + suite.epic_id1 + "/" + id, "")
 	assert.Equal(http.StatusOK, resp.Code)
 
 	// User #1 tries to get story
-	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + id, "")
+	resp = getRequestResponse("GET", "/api/v1/stories/" + suite.user_id1 + "/" + suite.epic_id1 + "/" + id, "")
 	assert.Equal(http.StatusUnauthorized, resp.Code)
 }
 

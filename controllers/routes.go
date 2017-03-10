@@ -38,8 +38,8 @@ func RegisterRoutes() *gin.Engine {
 		usersv1.POST("/epics/:id/:epicid", AddUserToEpic)
 		// curl -i -X POST -H "Content-Type: application/json" -d "{ \"email\": \"test@test.com\" }" http://localhost:8080/api/v1/epics/1/2
 
-		usersv1.GET("/stories/:id/:storyid", GetStory)
-		// curl -i http://localhost:8080/api/v1/stories/1/1
+		usersv1.GET("/stories/:id/:epicid/:storyid", GetStory)
+		// curl -i http://localhost:8080/api/v1/stories/1/1/1
 
 		usersv1.POST("/stories/:id", PostStory)
 		// curl -i -X POST -H "Content-Type: application/json" -d "{ \"name\": \"Test story\", \"stage\": 1, \"epic_id\": 1 }" http://localhost:8080/api/v1/stories/1
@@ -47,8 +47,8 @@ func RegisterRoutes() *gin.Engine {
 		usersv1.PUT("/stories/:id", UpdateStory)
 		// curl -i -X PUT -H "Content-Type: application/json" -d "{ \"id\": 1, \"name\": \"Test story\", \"stage\": 2, \"epic_id\": 1 }" http://localhost:8080/api/v1/stories/1
 
-		usersv1.DELETE("/stories/:id/:storyid", DeleteStory)
-		// curl -i -X DELETE http://localhost:8080/api/v1/stories/1/1
+		usersv1.DELETE("/stories/:id/:epicid/:storyid", DeleteStory)
+		// curl -i -X DELETE http://localhost:8080/api/v1/stories/1/1/1
 	}
 
 	if (utils.Conf.ADMIN_USERNAME != "" && utils.Conf.ADMIN_PASSWORD != "") {

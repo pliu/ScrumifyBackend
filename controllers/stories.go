@@ -10,10 +10,10 @@ import (
 
 func GetStory(c *gin.Context) {
 	user_id := c.Params.ByName("id")
+	epic_id := c.Params.ByName("epicid")
 	story_id := c.Params.ByName("storyid")
 
-	story, story_err := models.GetStory(story_id)
-	if _, err := models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err != nil {
+	if _, err := models.EpicOwnedByUser(user_id, epic_id); err != nil {
 		if err == utils.MappingDoesntExist {
 			c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
 		} else {
@@ -21,15 +21,15 @@ func GetStory(c *gin.Context) {
 		}
 		return
 	}
-	if story_err != nil {
-		if story_err == utils.StoryDoesntExist {
+	if story, err := models.GetStory(epic_id, story_id); err != nil {
+		if err == utils.StoryDoesntExist {
 			c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
 		} else {
 			c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
 		}
-		return
+	} else {
+		c.JSON(http.StatusOK, story)
 	}
-	c.JSON(http.StatusOK, story)
 }
 
 func PostStory(c *gin.Context) {
@@ -61,24 +61,14 @@ func PostStory(c *gin.Context) {
 
 func UpdateStory(c *gin.Context) {
 	user_id := c.Params.ByName("id")
-	var newStoryInfo models.Story
-	c.Bind(&newStoryInfo)
+	var story models.Story
+	c.Bind(&story)
 
-	if !newStoryInfo.IsValid() {
+	if !story.IsValid() && story.Id != 0 {
 		c.JSON(http.StatusBadRequest, utils.BadRequestReturn)
 		return
 	}
-	var story models.Story
-	var err error
-	if story, err = models.GetStory(strconv.FormatInt(newStoryInfo.Id, 10)); err != nil {
-		if err == utils.StoryDoesntExist {
-			c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
-		} else {
-			c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
-		}
-		return
-	}
-	if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err != nil {
+	if _, err := models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err != nil {
 		if err == utils.MappingDoesntExist {
 			c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
 		} else {
@@ -86,12 +76,13 @@ func UpdateStory(c *gin.Context) {
 		}
 		return
 	}
-	newStoryInfo.EpicId = story.EpicId
-	if assigneeError(newStoryInfo, c) {
+	if assigneeError(story, c) {
 		return
 	}
-	if newStoryInfo, err = models.CreateUpdateStory(newStoryInfo, true); err == nil {
-		c.JSON(http.StatusOK, newStoryInfo)
+	if _, err := models.CreateUpdateStory(story, true); err == nil {
+		c.JSON(http.StatusOK, story)
+	} else if err == utils.StoryDoesntExist {
+		c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
 	} else {
 		c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
 	}
@@ -99,19 +90,10 @@ func UpdateStory(c *gin.Context) {
 
 func DeleteStory(c *gin.Context) {
 	user_id := c.Params.ByName("id")
+	epic_id := c.Params.ByName("epicid")
 	story_id := c.Params.ByName("storyid")
 
-	var story models.Story
-	var err error
-	if story, err = models.GetStory(story_id); err != nil {
-		if err == utils.StoryDoesntExist {
-			c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
-		} else {
-			c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
-		}
-		return
-	}
-	if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(story.EpicId, 10)); err != nil {
+	if _, err := models.EpicOwnedByUser(user_id, epic_id); err != nil {
 		if err == utils.MappingDoesntExist {
 			c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
 		} else {
@@ -119,7 +101,7 @@ func DeleteStory(c *gin.Context) {
 		}
 		return
 	}
-	if err = models.DeleteStory(story); err == nil {
+	if err := models.DeleteStory(epic_id, story_id); err == nil {
 		c.JSON(http.StatusOK, "Story #" + story_id + " deleted")
 	} else {
 		c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
