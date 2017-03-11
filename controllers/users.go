@@ -47,10 +47,10 @@ func PostUser(c *gin.Context) {
 
 func UpdateUser(c *gin.Context) {
 	id := c.Params.ByName("id")
-	var newUserInfo models.User
-	c.Bind(&newUserInfo)
+	var user models.User
+	c.Bind(&user)
 
-	if !newUserInfo.IsValid() {
+	if !user.IsValid() {
 		c.JSON(http.StatusBadRequest, utils.BadRequestReturn)
 		return
 	}
@@ -60,9 +60,9 @@ func UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, utils.BadRequestReturn)
 		return
 	}
-	newUserInfo.Id = int_id
-	if newUserInfo, err = models.CreateUpdateUser(newUserInfo, true); err == nil {
-		c.JSON(http.StatusOK, newUserInfo.Scrub())
+	user.Id = int_id
+	if user, err = models.CreateUpdateUser(user, true); err == nil {
+		c.JSON(http.StatusOK, user.Scrub())
 	} else if err == utils.EmailExists {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	} else {

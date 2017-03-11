@@ -50,15 +50,15 @@ func PostEpic(c *gin.Context) {
 
 func UpdateEpic(c *gin.Context) {
 	user_id := c.Params.ByName("id")
-	var newEpicInfo models.Epic
-	c.Bind(&newEpicInfo)
+	var epic models.Epic
+	c.Bind(&epic)
 
-	if !newEpicInfo.IsValid() {
+	if !epic.IsValid() {
 		c.JSON(http.StatusBadRequest, utils.BadRequestReturn)
 		return
 	}
 	var err error
-	if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(newEpicInfo.Id, 10)); err != nil {
+	if _, err = models.EpicOwnedByUser(user_id, strconv.FormatInt(epic.Id, 10)); err != nil {
 		if err == utils.MappingDoesntExist {
 			c.JSON(http.StatusUnauthorized, utils.UnauthorizedReturn)
 		} else {
@@ -66,8 +66,8 @@ func UpdateEpic(c *gin.Context) {
 		}
 		return
 	}
-	if newEpicInfo, err = models.UpdateEpic(newEpicInfo); err == nil {
-		c.JSON(http.StatusOK, newEpicInfo)
+	if epic, err = models.UpdateEpic(epic); err == nil {
+		c.JSON(http.StatusOK, epic)
 	} else {
 		c.JSON(http.StatusInternalServerError, utils.InternalErrorReturn)
 	}

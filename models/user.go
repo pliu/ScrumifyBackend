@@ -133,7 +133,6 @@ func CreateUpdateUser(user User, update bool) (User, error) {
 	}
 	user.Email = strings.ToLower(user.Email)
 
-	var check User
 	if update {
 		_, err = trans.Update(&user)
 	} else {
@@ -147,11 +146,7 @@ func CreateUpdateUser(user User, update bool) (User, error) {
 		utils.PrintErr(err, "CreateUpdateUser: Failed to insert/update user " + strconv.FormatInt(user.Id, 10))
 		return User{}, err
 	}
-	if err = trans.SelectOne(&check, "SELECT * FROM User WHERE id=?", user.Id); err == nil {
-		return check, trans.Commit()
-	} else {
-		return user, trans.Commit()
-	}
+	return user, trans.Commit()
 }
 
 func DeleteUser(user_id string) error {
@@ -164,7 +159,7 @@ func DeleteUser(user_id string) error {
 	var mappings []EpicUserMap
 	if _, err = trans.Select(&mappings, "SELECT * FROM EpicUserMap WHERE user_id=?", user_id); err != nil {
 		trans.Rollback()
-		utils.PrintErr(err, "DeleteUser: Failed to select user " + user_id)
+		utils.PrintErr(err, "DeleteUser: Failed to select mappings for user " + user_id)
 		return err
 	}
 	if _, err = trans.Exec("DELETE FROM User WHERE id=?", user_id); err != nil {

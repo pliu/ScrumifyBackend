@@ -98,12 +98,7 @@ func UpdateEpic(epic Epic) (Epic, error) {
 		utils.PrintErr(err, "UpdateEpic: Failed to update epic " + strconv.FormatInt(epic.Id, 10))
 		return Epic{}, err
 	}
-	var check Epic
-	if err = trans.SelectOne(&check, "SELECT * FROM Epic WHERE id=?", epic.Id); err == nil {
-		return check, trans.Commit()
-	} else {
-		return epic, trans.Commit()
-	}
+	return epic, trans.Commit()
 }
 
 func DeleteEpic(mapping EpicUserMap) error {
@@ -128,16 +123,11 @@ func removeUnownedEpic(epic_id int64) {
 		return
 	}
 
-	if count, err := trans.SelectInt("SELECT COUNT(*) FROM EpicUserMap WHERE epic_id=?", epic_id); err == nil &&
-			count == 0 {
-		if _, err = trans.Exec("DELETE FROM Epic WHERE id=?", epic_id); err != nil {
-			trans.Rollback()
-			utils.PrintErr(err, "removeUnownedEpic: Failed to delete epic " + strconv.FormatInt(epic_id, 10))
-		} else {
-			trans.Commit()
-		}
-	} else {
+	if _, err = trans.Exec("DELETE FROM Epic WHERE id NOT IN (SELECT DISTINCT epic_id FROM EpicUserMap WHERE " +
+			"epic_id=?)", epic_id); err != nil {
 		trans.Rollback()
-		utils.PrintErr(err, "removeUnownedEpic: Failed to select mappings for epic " + strconv.FormatInt(epic_id, 10))
+		utils.PrintErr(err, "removeUnownedEpic: Failed to delete epic " + strconv.FormatInt(epic_id, 10))
+	} else {
+		trans.Commit()
 	}
 }

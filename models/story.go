@@ -14,8 +14,8 @@ type Story struct {
 	Name         string                     `db:"name" json:"name"`
 	Description  string                     `db:"description" json:"description"`
 	DueDate      gorp.NullTime              `db:"due_date" json:"due_date"`
-	Points       int64                      `db:"points" json:"points"`
-	Stage        int64                      `db:"stage" json:"stage"`
+	Points       uint8                      `db:"points" json:"points"`
+	Stage        uint8                      `db:"stage" json:"stage"`
 	EpicId       int64                      `db:"epic_id" json:"epic_id"`
 	AssignedTo   int64                      `db:"assigned_to" json:"assigned_to"`
 	Dependencies scrumifytypes.Dependencies `db:"dependencies" json:"dependencies"`

@@ -93,8 +93,9 @@ func (suite *StoriesTest) TestCreateDeleteStory() {
 	trace()
 	assert := assert.New(suite.T())
 
-	// User #1 creates story under epic #1
+	// User #1 creates two stories under epic #1
 	resp := createValidStory(suite)
+	resp = createValidStory(suite)
 	story := unmarshalToStory(resp)
 	id := strconv.FormatInt(story.Id, 10)
 
@@ -208,6 +209,12 @@ func (suite *StoriesTest) TestAccessUnownedStory() {
   		"name": "Test story",
   		"epic_id": ` + suite.epic_id2 + `}`)
 	assert.Equal(http.StatusUnauthorized, resp.Code)
+
+	// User #2 creates story under epic #2
+	resp = getRequestResponse("POST", "/api/v1/stories/" + suite.user_id2, `{
+  		"name": "Test story",
+  		"epic_id": ` + suite.epic_id2 + `}`)
+	assert.Equal(http.StatusCreated, resp.Code)
 }
 
 func (suite *StoriesTest) TestMultiownedEpic() {
@@ -254,7 +261,7 @@ func (suite *StoriesTest) TestCascadeDeletesStory() {
 	resp := createValidStory(suite)
 	story := unmarshalToStory(resp)
 
-	assert.True(suite.T(), storyExists(story.Id))
+	assert.True(suite.T(), storyExists(suite.epic_id1, story.Id))
 
 	// User #1 deletes epic #1
 	resp = getRequestResponse("DELETE", "/api/v1/epics/" + suite.user_id1 + "/" + suite.epic_id1, "")
@@ -264,12 +271,13 @@ func (suite *StoriesTest) TestCascadeDeletesStory() {
 	require.Equal(suite.T(), http.StatusUnauthorized, resp.Code)
 
 	time.Sleep(10 * time.Millisecond)
-	assert.False(suite.T(), storyExists(story.Id))
+	assert.False(suite.T(), storyExists(suite.epic_id1, story.Id))
 }
 
-func storyExists(story_id int64) bool {
+func storyExists(epic_id string, story_id int64) bool {
 	var story models.Story
-	if err := models.Dbmap.SelectOne(&story, "SELECT * FROM Story WHERE id=?", story_id); err == sql.ErrNoRows {
+	if err := models.Dbmap.SelectOne(&story, "SELECT * FROM Story WHERE epic_id=? AND id=?", epic_id, story_id);
+			err == sql.ErrNoRows {
 		return false
 	}
 	return true
